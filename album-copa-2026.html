@@ -14,7 +14,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* AUTH SCREEN */
 .auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#0d2b5e}
-.auth-logo{width:72px;height:72px;border-radius:50%;background:#c8282a;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:16px}
+.auth-logo{width:72px;height:72px;border-radius:50%;background:#c8282a;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
 .auth-title{color:#fff;font-size:22px;font-weight:600;margin-bottom:4px}
 .auth-sub{color:rgba(255,255,255,.6);font-size:14px;margin-bottom:32px}
 .auth-card{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px}
@@ -48,7 +48,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .app-screen.show{display:block}
 .header{background:#0d2b5e;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .hlogo{display:flex;align-items:center;gap:10px}
-.hball{width:34px;height:34px;border-radius:50%;background:#c8282a;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hball{width:34px;height:34px;border-radius:50%;background:#c8282a;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .htitle{font-size:15px;font-weight:600}
 .hsub{font-size:11px;opacity:.65}
 .header-right{display:flex;align-items:center;gap:8px}
@@ -239,7 +239,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- AUTH -->
 <div class="auth-screen" id="authScreen">
-  <div class="auth-logo">⚽</div>
+  <div class="auth-logo"><svg viewBox="0 0 24 28" width="40" height="46" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h16v10c0 5.5-3.6 8-8 8s-8-2.5-8-8V2z" fill="white"/><path d="M4 4H2a2 2 0 000 4h2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4h2a2 2 0 010 4h-2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/><rect x="10" y="20" width="4" height="5" fill="white"/><rect x="6" y="25" width="12" height="3" rx="1" fill="white"/></svg></div>
   <div class="auth-title">Álbum Copa 2026</div>
   <div class="auth-sub">Panini FIFA World Cup</div>
   <div class="auth-card">
@@ -282,7 +282,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="app-screen" id="appScreen">
   <div class="header">
     <div class="hlogo">
-      <div class="hball">⚽</div>
+      <div class="hball"><svg viewBox="0 0 24 28" width="18" height="21" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h16v10c0 5.5-3.6 8-8 8s-8-2.5-8-8V2z" fill="white"/><path d="M4 4H2a2 2 0 000 4h2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4h2a2 2 0 010 4h-2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/><rect x="10" y="20" width="4" height="5" fill="white"/><rect x="6" y="25" width="12" height="3" rx="1" fill="white"/></svg></div>
       <div><div class="htitle">Álbum Copa 2026</div><div class="hsub">Panini FIFA World Cup</div></div>
     </div>
     <div class="header-right">
@@ -376,8 +376,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- SCANNER -->
   <div class="page" id="page-scan">
     <div class="scan-mode-btns">
-      <button class="mode-btn active" id="modeBack" onclick="setMode('back')">① Verso (número)</button>
-      <button class="mode-btn" id="modeFront" onclick="setMode('front')">② Frente (colada)</button>
+      <button class="mode-btn active" id="modeBack" onclick="setMode('back')">📷 Verso — OCR grátis</button>
+      <button class="mode-btn" id="modeFront" onclick="setMode('front')">✨ Frente — requer IA</button>
+    </div>
+    <div id="modeInfoBar" style="margin:0 12px 6px;padding:8px 12px;border-radius:8px;font-size:12px;background:#e8f5e9;color:#1a7a3c;border:1px solid #b2dfdb">
+      Modo verso: lê o código impresso automaticamente via OCR, sem custos.
     </div>
     <div class="apikey-banner" id="apikeyBanner">
       ⚠️ Configure sua chave da API Anthropic para usar o reconhecimento por IA
@@ -657,6 +660,8 @@ window.scheduleSave = () => {
 };
 </script>
 
+<!-- TESSERACT OCR -->
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- CHART.JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 
@@ -767,6 +772,81 @@ const PLAYER_NAMES=["Escudo","Goleiro","Goleiro Res.","Def. 1","Def. 2","Def. 3"
 let col={};
 let camStream=null,scanning=false,activeFilter='all',scanMode='back',cChart=null,groupsExpanded=false;
 let autoScanTimer=null,pendingSticker=null;
+let ocrWorker=null;
+
+// Mapeamento do prefixo Panini → nome do time no app
+const CODE_MAP={
+  'FWC':'Especiais',
+  'BRA':'Brasil','ARG':'Argentina','FRA':'França','GER':'Alemanha',
+  'ESP':'Espanha','ENG':'Inglaterra','POR':'Portugal','USA':'EUA',
+  'MEX':'México','CAN':'Canadá','NED':'Holanda','CRO':'Croácia',
+  'BEL':'Bélgica','URU':'Uruguai','COL':'Colômbia','MAR':'Marrocos',
+  'JPN':'Japão','SEN':'Senegal','KOR':'Coreia do Sul','AUS':'Austrália',
+  'SUI':'Suíça','POL':'Polônia','TUR':'Turquia','UKR':'Ucrânia',
+  'KSA':'Arábia Saudita','CRC':'Costa Rica','ECU':'Equador',
+  'PER':'Peru','VEN':'Venezuela','BOL':'Bolívia','PAN':'Panamá',
+  'HON':'Honduras','GUI':'Guiné','NGA':'Nigéria','GHA':'Ghana',
+  'JAM':'Jamaica','MLI':'Mali','CMR':'Camarões','ALG':'Argélia',
+  'TAN':'Tanzânia','IRN':'Irã','IRQ':'Iraque','AFG':'Afeganistão',
+  'CHN':'China','IDN':'Indonésia','NZL':'Nova Zelândia',
+  'CZE':'Rep. Tcheca','SVN':'Eslovênia',
+  // Times adicionais que podem aparecer no álbum real
+  'HAI':null,'PAN':null,'PAR':null,'CHI':null,'BOT':null,
+};
+
+function codeToNumber(prefix, pos){
+  const teamName=CODE_MAP[prefix];
+  if(!teamName) return null;
+  const team=TEAMS.find(t=>t.name===teamName);
+  if(!team) return null;
+  const n=team.start + pos - 1;
+  return (n>=team.start && n<team.start+20) ? n : null;
+}
+
+async function initOCR(){
+  if(ocrWorker) return ocrWorker;
+  setSS('Inicializando OCR (primeira vez demora ~10s)…','proc');
+  ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
+  await ocrWorker.setParameters({
+    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
+    tessedit_pageseg_mode:'7',
+  });
+  return ocrWorker;
+}
+
+async function runOCROnFrame(){
+  const vid=document.getElementById('vEl');
+  const canvas=document.getElementById('captureCanvas');
+  canvas.width=vid.videoWidth||640;
+  canvas.height=vid.videoHeight||480;
+  canvas.getContext('2d').drawImage(vid,0,0);
+
+  // Recorta o canto superior direito onde fica o badge (≈40% largura, 22% altura)
+  const w=canvas.width, h=canvas.height;
+  const cx=Math.floor(w*0.58), cy=0, cw=w-cx, ch=Math.floor(h*0.24);
+  const scale=3;
+  const proc=document.createElement('canvas');
+  proc.width=cw*scale; proc.height=ch*scale;
+  const ctx=proc.getContext('2d');
+  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
+
+  // Inverte cores: o badge é escuro com texto branco → OCR prefere texto escuro em fundo claro
+  const imgData=ctx.getImageData(0,0,proc.width,proc.height);
+  for(let i=0;i<imgData.data.length;i+=4){
+    imgData.data[i]=255-imgData.data[i];
+    imgData.data[i+1]=255-imgData.data[i+1];
+    imgData.data[i+2]=255-imgData.data[i+2];
+  }
+  ctx.putImageData(imgData,0,0);
+
+  const worker=await initOCR();
+  const {data:{text}}=await worker.recognize(proc);
+  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
+  // Extrai padrão: 2-4 letras maiúsculas + espaço opcional + 1-2 dígitos
+  const m=clean.match(/\b([A-Z]{2,4})\s*(\d{1,2})\b/);
+  if(!m) return null;
+  return {prefix:m[1], pos:parseInt(m[2]), raw:`${m[1]} ${m[2]}`};
+}
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
 function teamOwned(t){let c=0;for(let i=0;i<20;i++){if(col[t.start+i])c++;}return c;}
@@ -913,7 +993,17 @@ function setMode(m){
   scanMode=m;
   document.getElementById('modeBack').classList.toggle('active',m==='back');
   document.getElementById('modeFront').classList.toggle('active',m==='front');
-  document.getElementById('scanHint').textContent=m==='back'?'Posicione o verso da figurinha no quadro':'Posicione a frente da figurinha colada';
+  document.getElementById('scanHint').textContent=m==='back'?'Posicione o verso da figurinha no quadro':'Posicione a frente da figurinha colada no álbum';
+  const bar=document.getElementById('modeInfoBar');
+  if(m==='back'){
+    bar.style.background='#e8f5e9';bar.style.color='#1a7a3c';bar.style.borderColor='#b2dfdb';
+    bar.textContent='Modo verso: lê o código impresso automaticamente via OCR, sem custos.';
+  } else {
+    bar.style.background='#fff8e1';bar.style.color='#7a5700';bar.style.borderColor='#ffe082';
+    bar.innerHTML='✨ Modo frente requer chave de API Anthropic. <button onclick="openApiKeyModal()" style="margin-left:6px;padding:3px 8px;border-radius:5px;border:none;background:#0d2b5e;color:#fff;font-size:11px;cursor:pointer">Configurar</button>';
+  }
+  checkApiBanner();
+  if(camStream){stopAutoScan();document.getElementById('confirmPanel').classList.remove('show');pendingSticker=null;startAutoScan();}
 }
 function nav(p){
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
@@ -949,7 +1039,7 @@ function saveApiKey(){
 }
 function checkApiBanner(){
   const banner=document.getElementById('apikeyBanner');
-  if(banner)banner.classList.toggle('show',!getApiKey());
+  if(banner)banner.classList.toggle('show', scanMode==='front' && !getApiKey());
 }
 
 // ── Camera ──
@@ -967,7 +1057,7 @@ async function toggleCam(){
     pendingSticker=null;
     return;
   }
-  if(!getApiKey()){openApiKeyModal();return;}
+  if(scanMode==='front' && !getApiKey()){openApiKeyModal();return;}
   try{
     camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:960}},audio:false});
     const v=document.getElementById('vEl');v.srcObject=camStream;v.style.display='block';
@@ -995,59 +1085,83 @@ function stopAutoScan(){
 
 async function doAI(){
   if(!camStream||scanning||pendingSticker)return;
-  const apiKey=getApiKey();
-  if(!apiKey){stopAutoScan();openApiKeyModal();return;}
+  if(scanMode==='back') await doBackOCR();
+  else await doFrontAI();
+}
+
+async function doBackOCR(){
   scanning=true;
   const badge=document.getElementById('autoBadge');
-  if(badge){badge.textContent='ANALISANDO…';badge.classList.add('scanning');}
-  setSS('Analisando figurinha com IA...','proc');
+  if(badge){badge.textContent='LENDO…';badge.classList.add('scanning');}
+  try{
+    const result=await runOCROnFrame();
+    if(result){
+      const num=codeToNumber(result.prefix,result.pos);
+      const teamName=CODE_MAP[result.prefix]||null;
+      pendingSticker={
+        found:true, number:num, code:result.raw,
+        prefix:result.prefix, pos:result.pos,
+        player_name: num ? getInfo(num).name : null,
+        team: num ? getInfo(num).team : (teamName||result.prefix),
+        confidence:'ocr',
+        unmapped: !num,
+      };
+      showConfirmPanel(pendingSticker);
+      stopAutoScan();
+      setSS('Código lido — confirme antes de salvar','');
+    } else {
+      setSS('Badge não encontrado. Ajuste a posição…','');
+    }
+  }catch(e){setSS('Erro OCR: '+e.message,'');}
+  scanning=false;resetBadge();
+}
+
+async function doFrontAI(){
+  const apiKey=getApiKey();
+  if(!apiKey){stopAutoScan();setSS('Configure a API Key para usar o modo frente.','dup');openApiKeyModal();return;}
+  scanning=true;
+  const badge=document.getElementById('autoBadge');
+  if(badge){badge.textContent='IA…';badge.classList.add('scanning');}
+  setSS('Identificando com IA…','proc');
   const vid=document.getElementById('vEl');
   const canvas=document.getElementById('captureCanvas');
   canvas.width=vid.videoWidth||640;canvas.height=vid.videoHeight||480;
   canvas.getContext('2d').drawImage(vid,0,0);
   const b64=canvas.toDataURL('image/jpeg',.85).split(',')[1];
-  const modePrompt=scanMode==='back'
-    ?`A imagem mostra o VERSO de uma figurinha Panini Copa 2026.
-O número da figurinha está impresso no verso, geralmente no canto superior ou inferior, em destaque.
-IMPORTANTE: leia exatamente o número visível na imagem — não adivinhe.
-Responda SOMENTE JSON sem markdown:
-{"found":true,"number":NUMERO_INTEIRO,"player_name":"nome ou null","team":"time ou null","confidence":"alta|media|baixa"}
-Se não conseguir ler claramente o número, retorne {"found":false}.`
-    :`A imagem mostra a FRENTE de uma figurinha Panini Copa 2026 colada.
-Identifique o jogador, time e infira o número da figurinha com base na posição do time no álbum.
-Times e faixas: Brasil(1-20),Argentina(21-40),França(41-60),Alemanha(61-80),Espanha(81-100),Inglaterra(101-120),Portugal(121-140),EUA(141-160),México(161-180),Canadá(181-200),Holanda(201-220),Croácia(221-240),Bélgica(241-260),Uruguai(261-280),Colômbia(281-300).
+  const prompt=`Você é especialista no álbum Panini Copa 2026.
+A imagem mostra a FRENTE de uma figurinha colada no álbum.
+Identifique o jogador e o time. Estime o número da figurinha conforme os intervalos:
+Brasil(1-20),Argentina(21-40),França(41-60),Alemanha(61-80),Espanha(81-100),Inglaterra(101-120),Portugal(121-140),EUA(141-160),México(161-180),Canadá(181-200),Holanda(201-220),Croácia(221-240),Bélgica(241-260),Uruguai(261-280),Colômbia(281-300),Marrocos(301-320),Japão(321-340),Senegal(341-360),Coreia do Sul(361-380),Austrália(381-400).
 Responda SOMENTE JSON sem markdown:
 {"found":true,"number":NUMERO_INTEIRO,"player_name":"nome","team":"time","confidence":"alta|media|baixa"}`;
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-opus-4-5',max_tokens:300,
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:300,
         messages:[{role:'user',content:[
           {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-          {type:'text',text:modePrompt}
-        ]}]
-      })
+          {type:'text',text:prompt}
+        ]}]})
     });
     if(!res.ok){
       const err=await res.json().catch(()=>({}));
       if(res.status===401){stopAutoScan();setSS('API Key inválida. Reconfigure.','dup');openApiKeyModal();}
-      else setSS(`Erro API: ${err.error?.message||res.status}`,'');
+      else setSS(`Erro API ${res.status}`,'');
       scanning=false;resetBadge();return;
     }
     const data=await res.json();
     const txt=data.content?.find(c=>c.type==='text')?.text||'{}';
     let info;try{info=JSON.parse(txt.replace(/```json[\s\S]*?```|```/g,'').trim());}catch{info={found:false};}
-    if(info.found&&info.number&&info.number>=1&&info.number<=980){
+    if(info.found&&info.number>=1&&info.number<=980){
       pendingSticker=info;
       showConfirmPanel(info);
       stopAutoScan();
       setSS('Figurinha identificada — confirme antes de salvar','');
-    }else{
-      setSS('Não identificada. Buscando...','');
+    } else {
+      setSS('Não identificada. Buscando…','');
     }
-  }catch(e){setSS('Erro de conexão. Tentando...','');}
+  }catch(e){setSS('Erro de conexão. Tentando…','');}
   scanning=false;resetBadge();
 }
 
@@ -1058,27 +1172,49 @@ function resetBadge(){
 
 function showConfirmPanel(info){
   const num=info.number;
-  const isOwned=!!col[num];
-  document.getElementById('cThumb').textContent='#'+String(num).padStart(3,'0');
-  document.getElementById('cNum').textContent='#'+String(num).padStart(3,'0');
-  document.getElementById('cName').textContent=info.player_name||getInfo(num).name;
-  document.getElementById('cTeam').textContent=info.team||getInfo(num).team;
+  const codeLabel=info.code?` (${info.code})`:'';
+
+  if(num){
+    const isOwned=!!col[num];
+    document.getElementById('cThumb').textContent='#'+String(num).padStart(3,'0');
+    document.getElementById('cNum').textContent='#'+String(num).padStart(3,'0')+codeLabel;
+    document.getElementById('cName').textContent=info.player_name||getInfo(num).name;
+    document.getElementById('cTeam').textContent=info.team||getInfo(num).team;
+    const st=document.getElementById('cStatus');
+    st.textContent=isOwned?'⚠ Figurinha repetida':'✓ Nova figurinha';
+    st.className='confirm-status '+(isOwned?'cst-dup':'cst-new');
+  } else {
+    // Código lido mas time não mapeado no app
+    document.getElementById('cThumb').textContent=info.code||'?';
+    document.getElementById('cNum').textContent=info.code||'?';
+    document.getElementById('cName').textContent='Time não catalogado';
+    document.getElementById('cTeam').textContent=info.team||info.prefix||'—';
+    const st=document.getElementById('cStatus');
+    st.textContent='⚠ Não está na lista do app';
+    st.className='confirm-status cst-dup';
+  }
+
   const confEl=document.getElementById('cConf');
-  const confMap={alta:'conf-high',media:'conf-med',baixa:'conf-low'};
-  confEl.textContent='Confiança: '+(info.confidence||'—');
-  confEl.className='confirm-conf '+(confMap[info.confidence]||'');
-  const st=document.getElementById('cStatus');
-  st.textContent=isOwned?'⚠ Figurinha repetida':'✓ Nova figurinha';
-  st.className='confirm-status '+(isOwned?'cst-dup':'cst-new');
+  if(info.confidence==='ocr'){
+    confEl.textContent='Lido por OCR';confEl.className='confirm-conf conf-high';
+  } else {
+    const confMap={alta:'conf-high',media:'conf-med',baixa:'conf-low'};
+    confEl.textContent='IA — confiança: '+(info.confidence||'—');
+    confEl.className='confirm-conf '+(confMap[info.confidence]||'');
+  }
   document.getElementById('confirmPanel').classList.add('show');
 }
 
 function confirmSticker(){
   if(!pendingSticker)return;
-  addSticker(pendingSticker.number);
+  if(pendingSticker.number){
+    addSticker(pendingSticker.number);
+    setSS('Figurinha salva na coleção!','ok');
+  } else {
+    setSS('Time não catalogado — figurinha descartada.','');
+  }
   pendingSticker=null;
   document.getElementById('confirmPanel').classList.remove('show');
-  setSS('Figurinha salva na coleção!','ok');
   if(camStream)startAutoScan();
 }
 
