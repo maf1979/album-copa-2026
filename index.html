@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d2b5e">
+<title>Álbum Copa 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh}
+
+/* AUTH SCREEN */
+.auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#0d2b5e}
+.auth-logo{width:72px;height:72px;border-radius:50%;background:#c8282a;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:16px}
+.auth-title{color:#fff;font-size:22px;font-weight:600;margin-bottom:4px}
+.auth-sub{color:rgba(255,255,255,.6);font-size:14px;margin-bottom:32px}
+.auth-card{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px}
+.auth-tabs{display:flex;border-bottom:1px solid #eee;margin-bottom:20px}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:14px;cursor:pointer;color:#888;border-bottom:2px solid transparent;background:none;border-left:none;border-right:none;border-top:none}
+.auth-tab.active{color:#0d2b5e;border-bottom-color:#0d2b5e;font-weight:500}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:12px;color:#666;margin-bottom:5px;font-weight:500}
+.auth-field input{width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none;transition:border .2s}
+.auth-field input:focus{border-color:#0d2b5e}
+.btn-primary{width:100%;padding:13px;background:#0d2b5e;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;margin-bottom:12px;transition:opacity .2s}
+.btn-primary:active{opacity:.85}
+.btn-google{width:100%;padding:12px;background:#fff;color:#333;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s}
+.btn-google:hover{background:#f8f8f8}
+.btn-google img{width:18px;height:18px}
+.auth-divider{text-align:center;font-size:12px;color:#aaa;margin:12px 0;position:relative}
+.auth-divider::before,.auth-divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:#eee}
+.auth-divider::before{left:0}.auth-divider::after{right:0}
+.auth-error{background:#fce8e8;color:#a32d2d;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px;display:none}
+.auth-error.show{display:block}
+
+/* LOADING */
+.loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0d2b5e;gap:16px}
+.loading-screen.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#f0c040;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-screen p{color:rgba(255,255,255,.7);font-size:14px}
+
+/* APP */
+.app-screen{display:none;max-width:480px;margin:0 auto;background:#f0f2f5;min-height:100vh}
+.app-screen.show{display:block}
+.header{background:#0d2b5e;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.hlogo{display:flex;align-items:center;gap:10px}
+.hball{width:34px;height:34px;border-radius:50%;background:#c8282a;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.htitle{font-size:15px;font-weight:600}
+.hsub{font-size:11px;opacity:.65}
+.header-right{display:flex;align-items:center;gap:8px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.nav-top{display:flex;background:#fff;border-bottom:1px solid #eee;position:sticky;top:62px;z-index:99}
+.nt{flex:1;padding:10px 4px;text-align:center;font-size:11px;border:none;background:none;cursor:pointer;color:#888;border-bottom:2px solid transparent;transition:all .2s}
+.nt svg{display:block;margin:0 auto 3px;width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nt.active{color:#0d2b5e;border-bottom-color:#0d2b5e;font-weight:500}
+.page{display:none}
+.page.active{display:block}
+
+/* SYNC INDICATOR */
+.sync-bar{background:#e8f5e9;padding:6px 16px;font-size:12px;color:#1a7a3c;display:flex;align-items:center;gap:6px;transition:all .3s}
+.sync-bar.syncing{background:#fff8e1;color:#b07000}
+.sync-bar.error{background:#fce8e8;color:#a32d2d}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* DASHBOARD */
+.dash-hero{background:#0d2b5e;padding:16px;color:#fff}
+.hero-row{display:flex;gap:10px}
+.hero-big{flex:1;background:rgba(255,255,255,.1);border-radius:12px;padding:12px;text-align:center}
+.ring-wrap{display:flex;justify-content:center;position:relative;align-items:center}
+.ring-inner{position:absolute;text-align:center}
+.hero-sm-card{background:rgba(255,255,255,.1);border-radius:8px;padding:10px;text-align:center}
+.hero-sm-card .sn{font-size:20px;font-weight:600}
+.hero-sm-card .sl{font-size:10px;opacity:.65}
+.section{padding:12px 12px 0}
+.sec-title{font-size:12px;font-weight:600;color:#666;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.sec-link{font-size:11px;color:#185FA5;cursor:pointer;font-weight:400;text-transform:none;border:none;background:none;padding:0}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:10px 12px;margin-bottom:10px}
+
+.pbar-row{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.pbar-rank{font-size:10px;color:#999;width:14px;text-align:center;flex-shrink:0}
+.pbar-flag{width:26px;flex-shrink:0}
+.pbar-flag img{width:24px;height:16px;border-radius:2px;border:1px solid #eee;object-fit:cover;display:block}
+.pbar-name{font-size:12px;color:#333;width:78px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pbar-track{flex:1;height:6px;background:#eee;border-radius:3px;overflow:hidden;min-width:0}
+.pbar-fill{height:100%;background:#0d2b5e;border-radius:3px;transition:width .5s}
+.pbar-fill.full{background:#1a7a3c}
+.pbar-count{font-size:11px;color:#999;width:28px;text-align:right;flex-shrink:0}
+
+.groups-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0}
+.group-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:8px 10px}
+.gc-title{font-size:11px;font-weight:600;color:#0d2b5e;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid #f0f0f0}
+.gc-team{display:flex;align-items:center;gap:6px;padding:2px 0}
+.gc-flag-img{width:18px;height:12px;border-radius:2px;object-fit:cover;border:1px solid #eee;flex-shrink:0}
+.gc-tname{font-size:11px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.gc-dot.owned{background:#1a7a3c}
+.gc-dot.partial{background:#d4a017}
+.gc-dot.empty{background:#ddd}
+.expand-btn{width:100%;margin:6px 0 10px;padding:9px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;color:#185FA5;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .2s}
+.expand-btn:hover{background:#f0f4ff}
+.expand-chevron{transition:transform .3s;font-size:14px}
+.expand-chevron.open{transform:rotate(180deg)}
+
+/* SCANNER */
+.scan-mode-btns{display:flex;gap:8px;padding:10px 12px 6px}
+.mode-btn{flex:1;padding:9px 6px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;color:#888;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .2s}
+.mode-btn.active{background:#0d2b5e;color:#fff;border-color:#0d2b5e}
+.scan-area{background:#000;margin:0 12px 8px;border-radius:14px;overflow:hidden;position:relative;aspect-ratio:3/4}
+#vEl{width:100%;height:100%;object-fit:cover;display:none}
+.scan-ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+.scan-fr{width:190px;height:250px;border:2px solid rgba(255,255,255,.6);border-radius:8px;position:relative}
+.scan-fr::before,.scan-fr::after{content:'';position:absolute;width:22px;height:22px;border-color:#f0c040;border-style:solid}
+.scan-fr::before{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:6px 0 0 0}
+.scan-fr::after{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 6px 0}
+.sline{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#f0c040,transparent);animation:sc 2s infinite ease-in-out}
+@keyframes sc{0%,100%{top:8%}50%{top:88%}}
+.scan-hint{color:rgba(255,255,255,.8);font-size:12px;text-align:center;padding:0 20px}
+.camoff{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#111}
+.cam-icon{font-size:48px;opacity:.25}
+.camoff p{color:rgba(255,255,255,.45);font-size:13px;text-align:center;padding:0 24px;line-height:1.5}
+.scan-status{margin:0 12px 6px;background:#fff;border-radius:10px;padding:10px;text-align:center;border:1px solid #eee}
+.ss{font-size:13px;color:#888}
+.ss.proc{color:#0d2b5e;font-weight:500}
+.ss.ok{color:#1a7a3c;font-weight:500}
+.ss.dup{color:#c8282a;font-weight:500}
+.result-card{margin:0 12px 8px;background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:12px;display:none;align-items:center;gap:12px}
+.result-card.show{display:flex}
+.stk-thumb{width:46px;height:60px;border-radius:6px;background:#0d2b5e;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff;font-weight:600}
+.rbadge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;margin-top:5px;display:inline-block}
+.bnew{background:#e8f5e9;color:#1a7a3c}
+.bdup{background:#fce8e8;color:#a32d2d}
+.abtn{display:flex;width:calc(100% - 24px);margin:0 12px 10px;background:#0d2b5e;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:500;cursor:pointer;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
+.abtn:active{opacity:.85}
+.abtn.red{background:#c8282a}
+.abtn.green{background:#1a7a3c}
+
+/* COLEÇÃO */
+.stats-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 12px 0}
+.sbc{background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #e8e8e8}
+.sbc .sn{font-size:22px;font-weight:600}
+.sbc .sl{font-size:11px;color:#888;margin-top:2px}
+.sn.bl{color:#0d2b5e}.sn.gr{color:#1a7a3c}.sn.re{color:#c8282a}.sn.go{color:#d4a017}
+.prog-bar{margin:10px 12px 0;background:#fff;border-radius:12px;padding:12px;border:1px solid #e8e8e8}
+.pl{font-size:12px;color:#888;display:flex;justify-content:space-between;margin-bottom:8px}
+.pt{height:8px;background:#eee;border-radius:4px;overflow:hidden}
+.pf{height:100%;background:#0d2b5e;border-radius:4px;transition:width .6s}
+.sbar{padding:10px 12px 6px}
+.sbar input{width:100%;background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px 14px;font-size:14px;color:#333;outline:none}
+.sbar input:focus{border-color:#0d2b5e}
+.frow{padding:0 12px 8px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.fchip{flex-shrink:0;font-size:12px;padding:6px 12px;border-radius:20px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#888;white-space:nowrap;transition:all .2s}
+.fchip.active{background:#0d2b5e;color:#fff;border-color:#0d2b5e}
+.sgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:0 0 8px}
+.sc2{aspect-ratio:3/4;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;font-weight:600;cursor:pointer;border:1px solid #e8e8e8;position:relative;transition:transform .1s;background:#f5f5f5;color:#aaa}
+.sc2:active{transform:scale(.92)}
+.sc2.owned{background:#0d2b5e;color:#fff;border-color:#0d2b5e}
+.sc2.duplicate{background:#c8282a;color:#fff;border-color:#c8282a}
+.sc2 .db{position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#d4a017;border-radius:50%;font-size:7px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.tsec{padding:0 12px 2px}
+.thead{display:flex;align-items:center;gap:8px;padding:8px 0 5px;border-top:1px solid #eee}
+.tflag-img{width:24px;height:16px;border-radius:3px;object-fit:cover;border:1px solid #eee;flex-shrink:0}
+.tn{font-size:13px;font-weight:600;color:#222}
+.tc{font-size:11px;color:#999;margin-left:auto}
+
+/* TROCAS */
+.trade-sec{padding:12px}
+.trade-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.trade-stitle{font-size:12px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.4px}
+.trade-badge{background:#fce8e8;color:#a32d2d;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
+.tlist{display:flex;flex-direction:column;gap:6px}
+.ti{background:#fff;border-radius:10px;border:1px solid #e8e8e8;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.tnum{width:38px;height:48px;border-radius:6px;background:#c8282a;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0}
+.ti-flag-img{width:22px;height:15px;border-radius:2px;object-fit:cover;border:1px solid #eee;flex-shrink:0}
+.tname{font-size:13px;font-weight:500;color:#222}
+.tteam{font-size:11px;color:#888}
+.dcnt{font-size:11px;background:#fce8e8;color:#a32d2d;padding:3px 8px;border-radius:20px;white-space:nowrap;font-weight:500}
+.empty{text-align:center;padding:48px 20px;color:#aaa;font-size:13px;line-height:2}
+.empty-icon{font-size:40px;display:block;margin-bottom:8px;opacity:.3}
+
+/* USER MENU */
+.user-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:flex-start;justify-content:flex-end;padding:68px 12px 0}
+.user-menu-overlay.show{display:flex}
+.user-menu{background:#fff;border-radius:12px;padding:4px;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.user-menu-header{padding:12px 14px 10px;border-bottom:1px solid #f0f0f0}
+.user-menu-name{font-size:14px;font-weight:600;color:#222}
+.user-menu-email{font-size:12px;color:#888;margin-top:2px;word-break:break-all}
+.user-menu-item{display:flex;align-items:center;gap:10px;padding:11px 14px;font-size:14px;color:#333;cursor:pointer;border-radius:8px;transition:background .15s}
+.user-menu-item:hover{background:#f5f5f5}
+.user-menu-item.danger{color:#c8282a}
+
+/* CHART */
+.chart-legend{display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:#888}
+.chart-legend span{display:flex;align-items:center;gap:4px}
+.chart-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-logo">⚽</div>
+  <div class="auth-title">Álbum Copa 2026</div>
+  <div class="auth-sub">Panini FIFA World Cup</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Entrar</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Criar conta</button>
+    </div>
+    <div id="authError" class="auth-error"></div>
+    <div id="tabLogin">
+      <div class="auth-field"><label>E-mail</label><input type="email" id="loginEmail" placeholder="seu@email.com"></div>
+      <div class="auth-field"><label>Senha</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+      <button class="btn-primary" onclick="doEmailLogin()">Entrar</button>
+      <div class="auth-divider">ou</div>
+      <button class="btn-google" onclick="doGoogleLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+        Continuar com Google
+      </button>
+    </div>
+    <div id="tabRegister" style="display:none">
+      <div class="auth-field"><label>Nome</label><input type="text" id="regName" placeholder="Seu nome"></div>
+      <div class="auth-field"><label>E-mail</label><input type="email" id="regEmail" placeholder="seu@email.com"></div>
+      <div class="auth-field"><label>Senha</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres"></div>
+      <button class="btn-primary" onclick="doRegister()">Criar conta</button>
+      <div class="auth-divider">ou</div>
+      <button class="btn-google" onclick="doGoogleLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+        Continuar com Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="spinner"></div>
+  <p>Carregando sua coleção...</p>
+</div>
+
+<!-- APP -->
+<div class="app-screen" id="appScreen">
+  <div class="header">
+    <div class="hlogo">
+      <div class="hball">⚽</div>
+      <div><div class="htitle">Álbum Copa 2026</div><div class="hsub">Panini FIFA World Cup</div></div>
+    </div>
+    <div class="header-right">
+      <div style="font-size:11px;opacity:.55;text-align:right" id="hdate"></div>
+      <div class="user-avatar" id="userAvatar" onclick="toggleUserMenu()">?</div>
+    </div>
+  </div>
+
+  <div class="sync-bar" id="syncBar">
+    <div class="sync-dot"></div>
+    <span id="syncTxt">Sincronizado</span>
+  </div>
+
+  <div class="nav-top">
+    <button class="nt active" onclick="nav('dash')" id="nt-dash">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Início
+    </button>
+    <button class="nt" onclick="nav('scan')" id="nt-scan">
+      <svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+      Escanear
+    </button>
+    <button class="nt" onclick="nav('col')" id="nt-col">
+      <svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h13.4a.6.6 0 0 1 .6.6v13.114M6 17h14M6 21h14"/><circle cx="6" cy="19" r="2"/></svg>
+      Coleção
+    </button>
+    <button class="nt" onclick="nav('trade')" id="nt-trade">
+      <svg viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+      Trocas
+    </button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dash">
+    <div class="dash-hero">
+      <div class="hero-row">
+        <div class="hero-big">
+          <div class="ring-wrap">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="9"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#f0c040" stroke-width="9" stroke-linecap="round"
+                stroke-dasharray="251.3" stroke-dashoffset="251.3" id="ringCircle"
+                style="transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .8s"/>
+            </svg>
+            <div class="ring-inner">
+              <div style="font-size:22px;font-weight:700;color:#fff" id="pctHero">0%</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.6)">completo</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px" id="heroSub">0 de 980</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1">
+          <div class="hero-sm-card"><div class="sn" id="hOwned">0</div><div class="sl">obtidas</div></div>
+          <div class="hero-sm-card"><div class="sn" id="hMissing">980</div><div class="sl">faltando</div></div>
+          <div class="hero-sm-card"><div class="sn" id="hDups">0</div><div class="sl">repetidas</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Ranking de seleções <button class="sec-link" onclick="nav('col')">ver tudo</button></div>
+      <div class="card" id="rankingList"></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Grupos da Copa 2026</div>
+      <div class="groups-grid" id="groupsGrid"></div>
+      <button class="expand-btn" id="groupsToggle" onclick="toggleGroups()">
+        <span id="groupsToggleTxt">Ver todos os grupos (12)</span>
+        <span class="expand-chevron" id="expandChevron">▼</span>
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Por continente</div>
+      <div class="card" style="padding:12px;margin-bottom:10px">
+        <div class="chart-legend">
+          <span><i style="background:#0d2b5e"></i>Obtidas</span>
+          <span><i style="background:#dde4ef"></i>Total</span>
+        </div>
+        <div style="position:relative;width:100%;height:160px"><canvas id="contChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-bottom:16px">
+      <div class="sec-title">Próximas sugeridas</div>
+      <div class="card" id="suggestedList" style="padding:10px 12px"></div>
+    </div>
+  </div>
+
+  <!-- SCANNER -->
+  <div class="page" id="page-scan">
+    <div class="scan-mode-btns">
+      <button class="mode-btn active" id="modeBack" onclick="setMode('back')">① Verso (número)</button>
+      <button class="mode-btn" id="modeFront" onclick="setMode('front')">② Frente (colada)</button>
+    </div>
+    <div class="scan-area">
+      <div class="camoff" id="camOff">
+        <div class="cam-icon">📷</div>
+        <p>Toque em "Iniciar câmera" para escanear figurinhas</p>
+      </div>
+      <video id="vEl" autoplay playsinline muted></video>
+      <div class="scan-ov" id="scanOv">
+        <div class="scan-fr"><div class="sline"></div></div>
+        <div class="scan-hint" id="scanHint">Posicione o verso da figurinha no quadro</div>
+      </div>
+    </div>
+    <div class="scan-status"><p class="ss" id="ssTxt">Pronto para escanear</p></div>
+    <div class="result-card" id="resultCard">
+      <div class="stk-thumb"><span id="stkNum">#001</span></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:#222" id="rName">—</div>
+        <div style="font-size:12px;color:#888" id="rTeam">—</div>
+        <span class="rbadge" id="rBadge">—</span>
+      </div>
+    </div>
+    <button class="abtn" id="camBtn" onclick="toggleCam()">📷 <span id="camBtnTxt">Iniciar câmera</span></button>
+    <button class="abtn green" id="aiBtn" style="display:none" onclick="doAI()">✨ <span>Reconhecer com IA</span></button>
+  </div>
+
+  <!-- COLEÇÃO -->
+  <div class="page" id="page-col">
+    <div class="stats-bar">
+      <div class="sbc"><div class="sn bl" id="cOwned">0</div><div class="sl">obtidas</div></div>
+      <div class="sbc"><div class="sn gr" id="cMissing">980</div><div class="sl">faltando</div></div>
+      <div class="sbc"><div class="sn re" id="cDups">0</div><div class="sl">repetidas</div></div>
+      <div class="sbc"><div class="sn go" id="cPct">0%</div><div class="sl">completo</div></div>
+    </div>
+    <div class="prog-bar">
+      <div class="pl"><span>Progresso geral</span><span id="cpLabel">0 / 980</span></div>
+      <div class="pt"><div class="pf" id="cpFill" style="width:0%"></div></div>
+    </div>
+    <div class="sbar"><input type="text" placeholder="🔍 Buscar time ou número..." id="srchInp" oninput="renderGrid()"/></div>
+    <div class="frow">
+      <button class="fchip active" onclick="setFilter('all',this)">Todas</button>
+      <button class="fchip" onclick="setFilter('owned',this)">Tenho</button>
+      <button class="fchip" onclick="setFilter('missing',this)">Faltando</button>
+      <button class="fchip" onclick="setFilter('duplicate',this)">Repetidas</button>
+    </div>
+    <div id="colGrid"></div>
+  </div>
+
+  <!-- TROCAS -->
+  <div class="page" id="page-trade">
+    <div class="trade-sec">
+      <div class="trade-header">
+        <div class="trade-stitle">Para troca</div>
+        <div class="trade-badge" id="tradeCount">0</div>
+      </div>
+      <div class="tlist" id="tradeList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- USER MENU -->
+<div class="user-menu-overlay" id="userMenuOverlay" onclick="closeUserMenu(event)">
+  <div class="user-menu" onclick="event.stopPropagation()">
+    <div class="user-menu-header">
+      <div class="user-menu-name" id="menuName">—</div>
+      <div class="user-menu-email" id="menuEmail">—</div>
+    </div>
+    <div class="user-menu-item" onclick="nav('dash');closeUserMenu()">🏠 Início</div>
+    <div class="user-menu-item danger" onclick="doLogout()">🚪 Sair da conta</div>
+  </div>
+</div>
+
+<canvas id="captureCanvas" style="display:none"></canvas>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+         GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+         updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBXl3EP2P6CMojZg-8_7NytKj7TroQDBoE",
+  authDomain: "album-copa-2026-74f60.firebaseapp.com",
+  projectId: "album-copa-2026-74f60",
+  storageBucket: "album-copa-2026-74f60.firebasestorage.app",
+  messagingSenderId: "862732410462",
+  appId: "1:862732410462:web:9d9874055b5c63942b1ecf",
+  measurementId: "G-K7Y9KXLE5D"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+let currentUser = null;
+let syncTimeout = null;
+let unsubscribeSnapshot = null;
+
+// ── Expose auth functions to global scope ──
+window.doEmailLogin = async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(!email || !pass) return showAuthError('Preencha e-mail e senha.');
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    showAuthError(friendlyError(e.code));
+  }
+};
+
+window.doRegister = async () => {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  if(!name) return showAuthError('Digite seu nome.');
+  if(!email || !pass) return showAuthError('Preencha todos os campos.');
+  if(pass.length < 6) return showAuthError('Senha deve ter ao menos 6 caracteres.');
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, { displayName: name });
+  } catch(e) {
+    showAuthError(friendlyError(e.code));
+  }
+};
+
+window.doGoogleLogin = async () => {
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch(e) {
+    showAuthError(friendlyError(e.code));
+  }
+};
+
+window.doLogout = async () => {
+  if(unsubscribeSnapshot) unsubscribeSnapshot();
+  await signOut(auth);
+  closeUserMenu();
+};
+
+// ── Auth state ──
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    showScreen('loading');
+    setupUserUI(user);
+    await loadCollection(user.uid);
+    showScreen('app');
+  } else {
+    currentUser = null;
+    col = {};
+    showScreen('auth');
+  }
+});
+
+function setupUserUI(user) {
+  const name = user.displayName || user.email.split('@')[0];
+  document.getElementById('menuName').textContent = name;
+  document.getElementById('menuEmail').textContent = user.email;
+  const av = document.getElementById('userAvatar');
+  if(user.photoURL) {
+    av.innerHTML = `<img src="${user.photoURL}" alt="${name}">`;
+  } else {
+    av.textContent = name.charAt(0).toUpperCase();
+  }
+}
+
+async function loadCollection(uid) {
+  if(unsubscribeSnapshot) unsubscribeSnapshot();
+  const ref = doc(db, 'collections', uid);
+  const snap = await getDoc(ref);
+  if(snap.exists()) {
+    col = snap.data().stickers || {};
+  } else {
+    col = {};
+  }
+  updateAll();
+  // realtime listener
+  unsubscribeSnapshot = onSnapshot(ref, (snap) => {
+    if(snap.exists() && snap.metadata.hasPendingWrites === false) {
+      col = snap.data().stickers || {};
+      updateAll();
+      setSyncStatus('ok');
+    }
+  });
+}
+
+window._saveToFirestore = async () => {
+  if(!currentUser) return;
+  setSyncStatus('syncing');
+  try {
+    const ref = doc(db, 'collections', currentUser.uid);
+    await setDoc(ref, { stickers: col, updatedAt: new Date().toISOString() });
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('error');
+  }
+};
+
+function setSyncStatus(status) {
+  const bar = document.getElementById('syncBar');
+  const txt = document.getElementById('syncTxt');
+  if(status === 'ok') {
+    bar.style.background = '#e8f5e9'; bar.style.color = '#1a7a3c';
+    txt.textContent = 'Sincronizado com a nuvem ☁️';
+  } else if(status === 'syncing') {
+    bar.style.background = '#fff8e1'; bar.style.color = '#b07000';
+    txt.textContent = 'Salvando...';
+  } else {
+    bar.style.background = '#fce8e8'; bar.style.color = '#a32d2d';
+    txt.textContent = 'Erro ao salvar. Verifique a conexão.';
+  }
+}
+
+function friendlyError(code) {
+  const msgs = {
+    'auth/user-not-found': 'E-mail não encontrado.',
+    'auth/wrong-password': 'Senha incorreta.',
+    'auth/email-already-in-use': 'E-mail já cadastrado.',
+    'auth/invalid-email': 'E-mail inválido.',
+    'auth/weak-password': 'Senha muito fraca.',
+    'auth/popup-closed-by-user': 'Login cancelado.',
+    'auth/invalid-credential': 'E-mail ou senha incorretos.',
+  };
+  return msgs[code] || 'Erro ao autenticar. Tente novamente.';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function showScreen(name) {
+  document.getElementById('authScreen').style.display = name==='auth' ? 'flex' : 'none';
+  document.getElementById('loadingScreen').classList.toggle('show', name==='loading');
+  document.getElementById('appScreen').classList.toggle('show', name==='app');
+}
+
+// debounced save
+window.scheduleSave = () => {
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => window._saveToFirestore(), 1200);
+};
+</script>
+
+<!-- CHART.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<!-- APP LOGIC -->
+<script>
+const FLAGS={
+  "Brasil":"https://flagcdn.com/w40/br.png","Argentina":"https://flagcdn.com/w40/ar.png",
+  "França":"https://flagcdn.com/w40/fr.png","Alemanha":"https://flagcdn.com/w40/de.png",
+  "Espanha":"https://flagcdn.com/w40/es.png","Inglaterra":"https://flagcdn.com/w40/gb-eng.png",
+  "Portugal":"https://flagcdn.com/w40/pt.png","EUA":"https://flagcdn.com/w40/us.png",
+  "México":"https://flagcdn.com/w40/mx.png","Canadá":"https://flagcdn.com/w40/ca.png",
+  "Holanda":"https://flagcdn.com/w40/nl.png","Croácia":"https://flagcdn.com/w40/hr.png",
+  "Bélgica":"https://flagcdn.com/w40/be.png","Uruguai":"https://flagcdn.com/w40/uy.png",
+  "Colômbia":"https://flagcdn.com/w40/co.png","Marrocos":"https://flagcdn.com/w40/ma.png",
+  "Japão":"https://flagcdn.com/w40/jp.png","Senegal":"https://flagcdn.com/w40/sn.png",
+  "Coreia do Sul":"https://flagcdn.com/w40/kr.png","Austrália":"https://flagcdn.com/w40/au.png",
+  "Suíça":"https://flagcdn.com/w40/ch.png","Polônia":"https://flagcdn.com/w40/pl.png",
+  "Turquia":"https://flagcdn.com/w40/tr.png","Ucrânia":"https://flagcdn.com/w40/ua.png",
+  "Arábia Saudita":"https://flagcdn.com/w40/sa.png","Costa Rica":"https://flagcdn.com/w40/cr.png",
+  "Equador":"https://flagcdn.com/w40/ec.png","Peru":"https://flagcdn.com/w40/pe.png",
+  "Venezuela":"https://flagcdn.com/w40/ve.png","Bolívia":"https://flagcdn.com/w40/bo.png",
+  "Panamá":"https://flagcdn.com/w40/pa.png","Honduras":"https://flagcdn.com/w40/hn.png",
+  "Guiné":"https://flagcdn.com/w40/gn.png","Nigéria":"https://flagcdn.com/w40/ng.png",
+  "Ghana":"https://flagcdn.com/w40/gh.png","Jamaica":"https://flagcdn.com/w40/jm.png",
+  "Mali":"https://flagcdn.com/w40/ml.png","Camarões":"https://flagcdn.com/w40/cm.png",
+  "Argélia":"https://flagcdn.com/w40/dz.png","Tanzânia":"https://flagcdn.com/w40/tz.png",
+  "Irã":"https://flagcdn.com/w40/ir.png","Iraque":"https://flagcdn.com/w40/iq.png",
+  "Afeganistão":"https://flagcdn.com/w40/af.png","China":"https://flagcdn.com/w40/cn.png",
+  "Indonésia":"https://flagcdn.com/w40/id.png","Nova Zelândia":"https://flagcdn.com/w40/nz.png",
+  "Rep. Tcheca":"https://flagcdn.com/w40/cz.png","Eslovênia":"https://flagcdn.com/w40/si.png",
+};
+
+function flagImg(name,w,h){
+  const src=FLAGS[name];
+  if(!src) return `<span style="display:inline-block;width:${w}px;line-height:1">✨</span>`;
+  return `<img src="${src}" alt="${name}" width="${w}" height="${h}" style="border-radius:2px;border:1px solid #eee;object-fit:cover;display:block" loading="lazy">`;
+}
+
+const TEAMS=[
+  {name:"Brasil",continent:"América do Sul",start:1,group:"G"},
+  {name:"Argentina",continent:"América do Sul",start:21,group:"D"},
+  {name:"França",continent:"Europa",start:41,group:"E"},
+  {name:"Alemanha",continent:"Europa",start:61,group:"F"},
+  {name:"Espanha",continent:"Europa",start:81,group:"B"},
+  {name:"Inglaterra",continent:"Europa",start:101,group:"A"},
+  {name:"Portugal",continent:"Europa",start:121,group:"E"},
+  {name:"EUA",continent:"América do Norte",start:141,group:"A"},
+  {name:"México",continent:"América do Norte",start:161,group:"B"},
+  {name:"Canadá",continent:"América do Norte",start:181,group:"C"},
+  {name:"Holanda",continent:"Europa",start:201,group:"C"},
+  {name:"Croácia",continent:"Europa",start:221,group:"F"},
+  {name:"Bélgica",continent:"Europa",start:241,group:"D"},
+  {name:"Uruguai",continent:"América do Sul",start:261,group:"H"},
+  {name:"Colômbia",continent:"América do Sul",start:281,group:"G"},
+  {name:"Marrocos",continent:"África",start:301,group:"H"},
+  {name:"Japão",continent:"Ásia",start:321,group:"C"},
+  {name:"Senegal",continent:"África",start:341,group:"L"},
+  {name:"Coreia do Sul",continent:"Ásia",start:361,group:"D"},
+  {name:"Austrália",continent:"Oceania",start:381,group:"K"},
+  {name:"Suíça",continent:"Europa",start:401,group:"I"},
+  {name:"Polônia",continent:"Europa",start:421,group:"J"},
+  {name:"Turquia",continent:"Europa",start:441,group:"B"},
+  {name:"Ucrânia",continent:"Europa",start:461,group:"I"},
+  {name:"Arábia Saudita",continent:"Ásia",start:481,group:"F"},
+  {name:"Costa Rica",continent:"América Central",start:501,group:"A"},
+  {name:"Equador",continent:"América do Sul",start:521,group:"L"},
+  {name:"Peru",continent:"América do Sul",start:541,group:"K"},
+  {name:"Venezuela",continent:"América do Sul",start:561,group:"H"},
+  {name:"Bolívia",continent:"América do Sul",start:581,group:"J"},
+  {name:"Panamá",continent:"América Central",start:601,group:"I"},
+  {name:"Honduras",continent:"América Central",start:621,group:"G"},
+  {name:"Guiné",continent:"África",start:641,group:"L"},
+  {name:"Nigéria",continent:"África",start:661,group:"J"},
+  {name:"Ghana",continent:"África",start:681,group:"K"},
+  {name:"Jamaica",continent:"América Central",start:701,group:"C"},
+  {name:"Mali",continent:"África",start:721,group:"I"},
+  {name:"Camarões",continent:"África",start:741,group:"E"},
+  {name:"Argélia",continent:"África",start:761,group:"F"},
+  {name:"Tanzânia",continent:"África",start:781,group:"B"},
+  {name:"Irã",continent:"Ásia",start:801,group:"G"},
+  {name:"Iraque",continent:"Ásia",start:821,group:"H"},
+  {name:"Afeganistão",continent:"Ásia",start:841,group:"D"},
+  {name:"China",continent:"Ásia",start:861,group:"E"},
+  {name:"Indonésia",continent:"Ásia",start:881,group:"K"},
+  {name:"Nova Zelândia",continent:"Oceania",start:901,group:"L"},
+  {name:"Rep. Tcheca",continent:"Europa",start:921,group:"J"},
+  {name:"Eslovênia",continent:"Europa",start:941,group:"A"},
+  {name:"Especiais",continent:"—",start:961,group:"—"},
+];
+
+const GROUPS={
+  A:["Inglaterra","EUA","Costa Rica","Eslovênia"],
+  B:["Espanha","México","Turquia","Tanzânia"],
+  C:["Canadá","Holanda","Japão","Jamaica"],
+  D:["Argentina","Bélgica","Coreia do Sul","Afeganistão"],
+  E:["França","Portugal","Camarões","China"],
+  F:["Alemanha","Croácia","Arábia Saudita","Argélia"],
+  G:["Brasil","Colômbia","Honduras","Irã"],
+  H:["Uruguai","Marrocos","Venezuela","Iraque"],
+  I:["Suíça","Ucrânia","Panamá","Mali"],
+  J:["Polônia","Nigéria","Bolívia","Rep. Tcheca"],
+  K:["Austrália","Peru","Ghana","Indonésia"],
+  L:["Senegal","Equador","Guiné","Nova Zelândia"],
+};
+
+const PLAYER_NAMES=["Escudo","Goleiro","Goleiro Res.","Def. 1","Def. 2","Def. 3","Def. 4","Meia 1","Meia 2","Meia 3","Meia 4","Atacante 1","Foto Time","Atacante 2","Atacante 3","Atacante 4","Atacante 5","Meia 5","Def. 5","Capitão"];
+
+let col={};
+let camStream=null,scanning=false,activeFilter='all',scanMode='back',cChart=null,groupsExpanded=false;
+
+function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
+function teamOwned(t){let c=0;for(let i=0;i<20;i++){if(col[t.start+i])c++;}return c;}
+function getInfo(n){
+  let t=TEAMS[TEAMS.length-1];
+  for(let i=TEAMS.length-2;i>=0;i--){if(n>=TEAMS[i].start){t=TEAMS[i];break;}}
+  const pos=n-t.start;
+  return{name:pos<PLAYER_NAMES.length?PLAYER_NAMES[pos]:'Jogador '+(pos+1),team:t.name};
+}
+
+function updateAll(){
+  const owned=Object.keys(col).length;
+  const dups=Object.values(col).filter(v=>v>1).reduce((a,b)=>a+(b-1),0);
+  const pct=Math.round(owned/980*100);
+  ['hOwned','cOwned'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=owned;});
+  ['hMissing','cMissing'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=980-owned;});
+  ['hDups','cDups'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=dups;});
+  const ph=document.getElementById('pctHero');if(ph)ph.textContent=pct+'%';
+  const hs=document.getElementById('heroSub');if(hs)hs.textContent=owned+' de 980 figurinhas';
+  const circ=document.getElementById('ringCircle');
+  if(circ){const c=251.3;circ.style.strokeDashoffset=c-(c*pct/100);}
+  const cp=document.getElementById('cPct');if(cp)cp.textContent=pct+'%';
+  const cf=document.getElementById('cpFill');if(cf)cf.style.width=pct+'%';
+  const cl=document.getElementById('cpLabel');if(cl)cl.textContent=owned+' / 980';
+  renderRanking();renderGroups();renderContChart();renderSuggested();renderTrades();
+}
+
+function renderRanking(){
+  const el=document.getElementById('rankingList');if(!el)return;
+  const ranked=TEAMS.filter(t=>t.name!=='Especiais').map(t=>({...t,c:teamOwned(t)})).sort((a,b)=>b.c-a.c).slice(0,10);
+  el.innerHTML=ranked.map((t,i)=>`
+    <div class="pbar-row">
+      <span class="pbar-rank">${i+1}</span>
+      <div class="pbar-flag">${flagImg(t.name,24,16)}</div>
+      <span class="pbar-name">${t.name}</span>
+      <div class="pbar-track"><div class="pbar-fill${t.c===20?' full':''}" style="width:${Math.round(t.c/20*100)}%"></div></div>
+      <span class="pbar-count">${t.c}/20</span>
+    </div>`).join('');
+}
+
+function renderGroups(){
+  const el=document.getElementById('groupsGrid');if(!el)return;
+  const entries=Object.entries(GROUPS);
+  const visible=groupsExpanded?entries:entries.slice(0,2);
+  el.innerHTML=visible.map(([g,teams])=>`
+    <div class="group-card">
+      <div class="gc-title">Grupo ${g}</div>
+      ${teams.map(tn=>{
+        const t=TEAMS.find(x=>x.name===tn);
+        const c=t?teamOwned(t):0;
+        const cls=c===20?'owned':c>0?'partial':'empty';
+        return`<div class="gc-team">${flagImg(tn,18,12)}<span class="gc-tname">${tn}</span><span class="gc-dot ${cls}"></span></div>`;
+      }).join('')}
+    </div>`).join('');
+  const txt=document.getElementById('groupsToggleTxt');
+  const chv=document.getElementById('expandChevron');
+  if(txt)txt.textContent=groupsExpanded?'Ver menos':'Ver todos os grupos (12)';
+  if(chv)chv.className='expand-chevron'+(groupsExpanded?' open':'');
+}
+
+function toggleGroups(){groupsExpanded=!groupsExpanded;renderGroups();}
+
+function renderContChart(){
+  const conts=["Europa","América do Sul","América do Norte","África","Ásia","Oceania","América Central"];
+  const totals={},ownedC={};
+  conts.forEach(c=>{totals[c]=0;ownedC[c]=0;});
+  TEAMS.forEach(t=>{
+    if(t.name==='Especiais')return;
+    totals[t.continent]=(totals[t.continent]||0)+20;
+    ownedC[t.continent]=(ownedC[t.continent]||0)+teamOwned(t);
+  });
+  const labels=["Europa","Am. Sul","Am. Norte","África","Ásia","Oceania","Am. Central"];
+  const canvas=document.getElementById('contChart');if(!canvas)return;
+  if(cChart)cChart.destroy();
+  cChart=new Chart(canvas,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Obtidas',data:conts.map(c=>ownedC[c]||0),backgroundColor:'#0d2b5e',borderRadius:3},
+      {label:'Total',data:conts.map(c=>totals[c]||0),backgroundColor:'#dde4ef',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:9},color:'#888',autoSkip:false,maxRotation:35},grid:{display:false}},
+              y:{ticks:{font:{size:9},color:'#888'},grid:{color:'rgba(0,0,0,.05)'}}}}
+  });
+}
+
+function renderSuggested(){
+  const el=document.getElementById('suggestedList');if(!el)return;
+  const missing=[];for(let n=1;n<=960;n++){if(!col[n])missing.push(n);}
+  if(missing.length===0){el.innerHTML='<div class="empty"><span class="empty-icon">🏆</span>Álbum completo! Parabéns!</div>';return;}
+  el.innerHTML=missing.slice(0,5).map(n=>{
+    const info=getInfo(n);
+    return`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0">
+      <div style="width:34px;height:44px;border-radius:5px;background:#eef1f7;display:flex;align-items:center;justify-content:center;font-size:9px;color:#0d2b5e;font-weight:700">#${n}</div>
+      ${flagImg(info.team,22,15)}
+      <div><div style="font-size:13px;font-weight:500;color:#222">${info.name}</div><div style="font-size:11px;color:#888">${info.team}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderTrades(){
+  const dups=Object.entries(col).filter(([k,v])=>v>1);
+  const el=document.getElementById('tradeCount');if(el)el.textContent=dups.length;
+  const list=document.getElementById('tradeList');if(!list)return;
+  if(dups.length===0){list.innerHTML='<div class="empty"><span class="empty-icon">🔄</span>Nenhuma figurinha repetida ainda.<br>Escaneie suas figurinhas!</div>';return;}
+  list.innerHTML=dups.map(([n,cnt])=>{
+    const info=getInfo(+n);
+    return`<div class="ti">
+      <div class="tnum">#${n}</div>
+      ${flagImg(info.team,22,15)}
+      <div style="flex:1"><div class="tname">${info.name}</div><div class="tteam">${info.team}</div></div>
+      <span class="dcnt">×${cnt-1}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderGrid(){
+  const q=(document.getElementById('srchInp').value||'').toLowerCase();
+  let html='';
+  for(const t of TEAMS){
+    let cells='';
+    for(let i=0;i<20;i++){
+      const n=t.start+i;if(n>980)break;
+      const info=getInfo(n);const cnt=col[n]||0;
+      if(q&&!String(n).includes(q)&&!info.name.toLowerCase().includes(q)&&!t.name.toLowerCase().includes(q))continue;
+      if(activeFilter==='owned'&&cnt===0)continue;
+      if(activeFilter==='missing'&&cnt>0)continue;
+      if(activeFilter==='duplicate'&&cnt<=1)continue;
+      cells+=`<div class="sc2 ${cnt===0?'':cnt>1?'duplicate':'owned'}" onclick="toggleS(${n})">${cnt>1?`<div class="db">${cnt}</div>`:''}<div>${n}</div></div>`;
+    }
+    if(!cells)continue;
+    html+=`<div class="tsec"><div class="thead">${flagImg(t.name,24,16)}<span class="tn">${t.name}</span><span class="tc">${teamOwned(t)}/20</span></div><div class="sgrid">${cells}</div></div>`;
+  }
+  document.getElementById('colGrid').innerHTML=html||'<div class="empty"><span class="empty-icon">🔍</span>Nenhuma figurinha encontrada</div>';
+}
+
+function toggleS(n){
+  col[n]?delete col[n]:col[n]=1;
+  updateAll();renderGrid();
+  if(window.scheduleSave)window.scheduleSave();
+}
+function setFilter(f,el){activeFilter=f;document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderGrid();}
+function setMode(m){
+  scanMode=m;
+  document.getElementById('modeBack').classList.toggle('active',m==='back');
+  document.getElementById('modeFront').classList.toggle('active',m==='front');
+  document.getElementById('scanHint').textContent=m==='back'?'Posicione o verso da figurinha no quadro':'Posicione a frente da figurinha colada';
+}
+function nav(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nt').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nt-'+p).classList.add('active');
+  if(p==='col'){renderGrid();}
+  if(p==='trade')renderTrades();
+  updateAll();
+}
+function switchAuthTab(tab){
+  document.getElementById('tabLogin').style.display=tab==='login'?'block':'none';
+  document.getElementById('tabRegister').style.display=tab==='register'?'block':'none';
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register')));
+}
+function toggleUserMenu(){document.getElementById('userMenuOverlay').classList.add('show');}
+function closeUserMenu(e){if(!e||e.target===document.getElementById('userMenuOverlay'))document.getElementById('userMenuOverlay').classList.remove('show');}
+
+async function toggleCam(){
+  if(camStream){
+    camStream.getTracks().forEach(t=>t.stop());camStream=null;
+    document.getElementById('vEl').style.display='none';
+    document.getElementById('camOff').style.display='flex';
+    document.getElementById('scanOv').style.display='none';
+    document.getElementById('camBtnTxt').textContent='Iniciar câmera';
+    document.getElementById('camBtn').classList.remove('red');
+    document.getElementById('aiBtn').style.display='none';
+    document.getElementById('resultCard').classList.remove('show');
+    return;
+  }
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:960}},audio:false});
+    const v=document.getElementById('vEl');v.srcObject=camStream;v.style.display='block';
+    document.getElementById('camOff').style.display='none';
+    document.getElementById('scanOv').style.display='flex';
+    document.getElementById('camBtnTxt').textContent='Parar câmera';
+    document.getElementById('camBtn').classList.add('red');
+    document.getElementById('aiBtn').style.display='flex';
+    setSS('Aponte para a figurinha e toque em "Reconhecer com IA"','');
+  }catch(e){setSS('Câmera indisponível. Use a aba Coleção para marcar manualmente.','');}
+}
+function setSS(msg,type){const el=document.getElementById('ssTxt');if(el){el.textContent=msg;el.className='ss'+(type?' '+type:'');}}
+
+async function doAI(){
+  if(!camStream||scanning)return;
+  scanning=true;
+  const btn=document.getElementById('aiBtn');btn.style.opacity='.6';
+  setSS('Analisando figurinha com IA...','proc');
+  document.getElementById('resultCard').classList.remove('show');
+  const vid=document.getElementById('vEl');
+  const canvas=document.getElementById('captureCanvas');
+  canvas.width=vid.videoWidth||640;canvas.height=vid.videoHeight||480;
+  canvas.getContext('2d').drawImage(vid,0,0);
+  const b64=canvas.toDataURL('image/jpeg',.85).split(',')[1];
+  const modePrompt=scanMode==='back'
+    ?'A imagem mostra o VERSO de uma figurinha Panini Copa 2026. O número está impresso no verso. Identifique o número.'
+    :'A imagem mostra a FRENTE de uma figurinha Panini Copa 2026 colada. Identifique o jogador, time e infira o número.';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',max_tokens:500,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+          {type:'text',text:`Especialista em figurinhas Panini Copa 2026. ${modePrompt}\nTimes: Brasil(1-20),Argentina(21-40),França(41-60),Alemanha(61-80),Espanha(81-100),Inglaterra(101-120),Portugal(121-140),EUA(141-160),México(161-180),Canadá(181-200)...\nResponda SOMENTE JSON sem markdown:\n{"found":true/false,"number":numero_ou_null,"player_name":"nome","team":"time","confidence":"alta/media/baixa"}`}
+        ]}]
+      })
+    });
+    const data=await res.json();
+    const txt=data.content?.find(c=>c.type==='text')?.text||'{}';
+    let info;try{info=JSON.parse(txt.replace(/```json|```/g,'').trim());}catch{info={found:false};}
+    if(info.found&&info.number){
+      const wasOwned=!!col[info.number];
+      addSticker(info.number);
+      document.getElementById('stkNum').textContent='#'+String(info.number).padStart(3,'0');
+      document.getElementById('rName').textContent=info.player_name||'Figurinha';
+      document.getElementById('rTeam').textContent=info.team||'';
+      const rb=document.getElementById('rBadge');
+      rb.textContent=!wasOwned?'✓ Nova figurinha!':'⚠ Repetida';
+      rb.className='rbadge '+(!wasOwned?'bnew':'bdup');
+      document.getElementById('resultCard').classList.add('show');
+      setSS(!wasOwned?'Adicionada à coleção!':'Repetida registrada',!wasOwned?'ok':'dup');
+    }else{setSS('Não identificada. Tente novamente.','');}
+  }catch(e){setSS('Erro na análise. Tente novamente.','');}
+  scanning=false;btn.style.opacity='1';
+}
+
+const now=new Date();
+const hd=document.getElementById('hdate');
+if(hd)hd.innerHTML=`${now.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}<br>${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+</script>
+</body>
+</html>
