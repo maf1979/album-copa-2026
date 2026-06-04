@@ -944,29 +944,26 @@ async function runOCROnFrame(){
 
   const w=canvas.width, h=canvas.height;
 
-  // Crop: LARGURA TOTAL, faixa vertical 12%-57%
-  // Cobre badges de qualquer posição horizontal (1 ou mais figurinhas)
+  // Crop: largura total, faixa vertical 12%-42% (onde ficam os badges)
   const cx=0, cy=Math.floor(h*0.12);
-  const cw=w, ch=Math.floor(h*0.45);
+  const cw=w, ch=Math.floor(h*0.30);
 
-  // Escala 3× — necessário para badges pequenos (múltiplas figurinhas no frame)
-  const scale=3;
+  // Limita a imagem processada a 900px de largura — evita crash por
+  // out-of-memory em câmeras de alta resolução (1080p, 4K)
+  // Ex: câmera 1280px → outW=900, outH≈211 → canvas ~570k px → ~2MB OK
+  const outW=Math.min(cw,900);
+  const outH=Math.round(outW*ch/cw);
   const proc=document.createElement('canvas');
-  proc.width=cw*scale; proc.height=ch*scale;
+  proc.width=outW; proc.height=outH;
   const ctx=proc.getContext('2d');
-  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
+  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,outW,outH);
 
-  // Threshold tri-nível para isolar apenas os badges Panini:
-  //   cinza < 85   → fundo do badge (muito escuro) → branco
-  //   cinza > 195  → texto do badge (branco/claro) → preto
-  //   80-195       → fine-print e fundo médio       → cinza claro (220)
-  // Resultado: badge = texto preto nítido em fundo branco
-  //            fine-print = ruído cinza uniforme (OCR ignora)
-  const imgData=ctx.getImageData(0,0,proc.width,proc.height);
+  // Inversão simples: fundo escuro do badge → branco; texto branco → preto
+  const imgData=ctx.getImageData(0,0,outW,outH);
   const d=imgData.data;
   for(let i=0;i<d.length;i+=4){
     const gray=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
-    const v=gray<85?255:gray>195?0:220;
+    const v=gray<128?255:0;
     d[i]=d[i+1]=d[i+2]=v;
   }
   ctx.putImageData(imgData,0,0);
