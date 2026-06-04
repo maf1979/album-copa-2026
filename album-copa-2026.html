@@ -435,6 +435,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
     <div class="scan-status"><p class="ss" id="ssTxt">Pronto para escanear</p></div>
+    <!-- Debug: mostra a imagem que o OCR está processando -->
+    <div id="ocrDebugWrap" style="display:none;margin:0 12px 6px;background:#111;border-radius:10px;overflow:hidden">
+      <div style="font-size:10px;color:#888;padding:4px 8px">Prévia OCR (zona A)</div>
+      <canvas id="ocrDebugCanvas" style="width:100%;display:block"></canvas>
+    </div>
     <!-- Painel de confirmação multi-sticker -->
     <div class="confirm-panel" id="confirmPanel">
       <div class="confirm-header">
@@ -930,9 +935,42 @@ async function initOCR(){
   ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
   await ocrWorker.setParameters({
     tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-    tessedit_pageseg_mode:'11', // sparse text: encontra texto em qualquer posição da imagem
+    tessedit_pageseg_mode:'7', // single text line — ideal para badge de 1 linha
   });
   return ocrWorker;
+}
+
+// Cria canvas processado para OCR
+function buildOCRCanvas(src,cx,cy,cw,ch){
+  // Escala para garantir saída entre 700-1000px de largura (texto legível)
+  const scaleF=Math.min(Math.max(750/cw,0.5),3.0);
+  const outW=Math.round(cw*scaleF);
+  const outH=Math.round(ch*scaleF);
+  const c=document.createElement('canvas');
+  c.width=outW; c.height=outH;
+  const ctx=c.getContext('2d');
+  ctx.drawImage(src,cx,cy,cw,ch,0,0,outW,outH);
+  // Inversão binária: badge escuro→branco, texto branco→preto
+  const id=ctx.getImageData(0,0,outW,outH);
+  const d=id.data;
+  for(let i=0;i<d.length;i+=4){
+    const g=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
+    const v=g<130?255:0;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(id,0,0);
+  return c;
+}
+
+function parseOCRText(text){
+  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
+  const seen=new Set();
+  return[...clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)].reduce((acc,m)=>{
+    if(!CODE_MAP.hasOwnProperty(m[1]))return acc;
+    const raw=`${m[1]} ${m[2]}`;
+    if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
+    return acc;
+  },[]);
 }
 
 async function runOCROnFrame(){
@@ -944,43 +982,53 @@ async function runOCROnFrame(){
 
   const w=canvas.width, h=canvas.height;
 
-  // Crop: largura total, faixa vertical 12%-42% (onde ficam os badges)
-  const cx=0, cy=Math.floor(h*0.12);
-  const cw=w, ch=Math.floor(h*0.30);
-
-  // Limita a imagem processada a 900px de largura — evita crash por
-  // out-of-memory em câmeras de alta resolução (1080p, 4K)
-  // Ex: câmera 1280px → outW=900, outH≈211 → canvas ~570k px → ~2MB OK
-  const outW=Math.min(cw,900);
-  const outH=Math.round(outW*ch/cw);
-  const proc=document.createElement('canvas');
-  proc.width=outW; proc.height=outH;
-  const ctx=proc.getContext('2d');
-  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,outW,outH);
-
-  // Inversão simples: fundo escuro do badge → branco; texto branco → preto
-  const imgData=ctx.getImageData(0,0,outW,outH);
-  const d=imgData.data;
-  for(let i=0;i<d.length;i+=4){
-    const gray=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
-    const v=gray<128?255:0;
-    d[i]=d[i+1]=d[i+2]=v;
-  }
-  ctx.putImageData(imgData,0,0);
-
   const worker=await initOCR();
-  const {data:{text}}=await worker.recognize(proc);
-  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
 
-  // Captura todos os padrões e filtra APENAS os que existem no CODE_MAP
-  // Elimina falsos positivos como "EY 5", "TY 0" vindos do fine-print invertido
-  const seen=new Set();
-  return [...clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)].reduce((acc,m)=>{
-    if(!CODE_MAP.hasOwnProperty(m[1]))return acc; // rejeita código desconhecido
-    const raw=`${m[1]} ${m[2]}`;
-    if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
-    return acc;
-  },[]);
+  // Mostra o debug wrap durante o scan
+  const dbgWrap=document.getElementById('ocrDebugWrap');
+  if(dbgWrap)dbgWrap.style.display='block';
+
+  // ── Passo 1: zona direita com PSM 7 (1 figurinha centrada)
+  // Badge fica em ~50-95% X, ~8-42% Y para figurinha centralizada
+  const zA={cx:Math.floor(w*0.45),cy:Math.floor(h*0.08),cw:Math.floor(w*0.55),ch:Math.floor(h*0.34)};
+  await worker.setParameters({tessedit_pageseg_mode:'7'});
+  const procA=buildOCRCanvas(canvas,zA.cx,zA.cy,zA.cw,zA.ch);
+  // Mostra prévia do que o OCR está vendo
+  const dbgCanvas=document.getElementById('ocrDebugCanvas');
+  if(dbgCanvas){dbgCanvas.width=procA.width;dbgCanvas.height=procA.height;dbgCanvas.getContext('2d').drawImage(procA,0,0);}
+  const {data:{text:txtA}}=await worker.recognize(procA);
+  let results=parseOCRText(txtA);
+
+  // ── Passo 2 (só se passo 1 falhou): largura total com PSM 11
+  // Cobre múltiplas figurinhas e posições variadas
+  if(!results.length){
+    const zB={cx:0,cy:Math.floor(h*0.08),cw:w,ch:Math.floor(h*0.34)};
+    await worker.setParameters({tessedit_pageseg_mode:'11'});
+    // Cap a 800px para não travar mobile
+    const outW=Math.min(w,800),outH=Math.round(outW*zB.ch/w);
+    const procB=document.createElement('canvas');
+    procB.width=outW;procB.height=outH;
+    const ctxB=procB.getContext('2d');
+    ctxB.drawImage(canvas,zB.cx,zB.cy,zB.cw,zB.ch,0,0,outW,outH);
+    const idB=ctxB.getImageData(0,0,outW,outH);
+    const dB=idB.data;
+    for(let i=0;i<dB.length;i+=4){
+      const g=(dB[i]*77+dB[i+1]*150+dB[i+2]*29)>>8;
+      const v=g<130?255:0;
+      dB[i]=dB[i+1]=dB[i+2]=v;
+    }
+    ctxB.putImageData(idB,0,0);
+    const {data:{text:txtB}}=await worker.recognize(procB);
+    results=parseOCRText(txtB);
+    // Mostra debug no status p/ ajudar diagnóstico
+    setSS(`OCR bruto: "${txtB.replace(/\n/g,' ').trim().substring(0,60)}"… (${results.length} ok)`,'');
+    await worker.setParameters({tessedit_pageseg_mode:'7'}); // restaura padrão
+  }
+
+  // Mostra debug se passo 1 encontrou algo
+  if(results.length) setSS(`OCR: encontrou ${results.length} código(s)`,'ok');
+
+  return results;
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
