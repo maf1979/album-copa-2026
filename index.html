@@ -407,52 +407,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <!-- SCANNER -->
   <div class="page" id="page-scan">
-    <div class="scan-mode-btns">
-      <button class="mode-btn active" id="modeBack" onclick="setMode('back')">📷 Verso — OCR grátis</button>
-      <button class="mode-btn" id="modeFront" onclick="setMode('front')">✨ Frente — requer IA</button>
-    </div>
-    <div id="modeInfoBar" style="display:none"></div>
-    <div class="apikey-banner" id="apikeyBanner">
-      ⚠️ Configure sua chave da API Anthropic para usar o reconhecimento por IA
-      <button onclick="openApiKeyModal()">Configurar</button>
-    </div>
-    <div class="scan-area">
+
+    <!-- Câmera pequena: ajuda a VER o código no verso da figurinha -->
+    <div class="scan-area" style="height:42vw;max-height:240px;aspect-ratio:unset;margin-bottom:10px">
       <div class="camoff" id="camOff">
         <div class="cam-icon">📷</div>
-        <p>Toque em "Iniciar câmera" para escanear figurinhas</p>
+        <p>Ligue a câmera para visualizar o verso da figurinha e identificar o código</p>
       </div>
       <video id="vEl" autoplay playsinline muted></video>
-      <div class="scan-ov" id="scanOv">
-        <div class="scan-fr">
-          <div class="sline"></div>
-          <div style="position:absolute;top:6px;right:6px;border:2px dashed rgba(240,192,64,.95);border-radius:5px;width:58px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(240,192,64,.95);font-weight:700;letter-spacing:.5px;background:rgba(0,0,0,.25)">CÓDIGO</div>
-        </div>
-        <div class="scan-hint" id="scanHint">Aponte o verso da figurinha para a câmera</div>
-        <div id="ssTxt" style="background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:5px 14px;border-radius:20px;max-width:90%;text-align:center;margin-top:6px;display:none"></div>
+      <div class="scan-ov" id="scanOv" style="justify-content:flex-end;padding-bottom:8px;background:none">
+        <div id="ssTxt" style="background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;max-width:90%;text-align:center;display:none"></div>
       </div>
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
 
-    <!-- Painel de código: OCR preenche automaticamente, usuário confirma/corrige -->
-    <div id="codePanel" style="display:none;margin:6px 12px 4px;background:#fff;border:2px solid #0d2b5e;border-radius:14px;padding:14px">
-      <div style="font-size:12px;color:#555;margin-bottom:8px;font-weight:500">Confirme o código da figurinha:</div>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
+    <!-- Área de cadastro: entrada manual + lookup em tempo real -->
+    <div style="margin:0 12px 10px;background:#fff;border-radius:14px;border:1px solid #e8e8e8;padding:14px">
+      <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">
+        Veja o código no canto superior direito do verso:<br>
+        <span style="font-family:monospace;font-size:13px;color:#0d2b5e;font-weight:600">BRA 5 · HAI 1 · FWC 4 · PAR 12 · ENG 3</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
         <input id="codeField" type="text" placeholder="Ex: BRA 5" maxlength="8"
-               style="flex:1;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:18px;font-weight:700;letter-spacing:2px;text-transform:uppercase;outline:none"
+               style="flex:1;padding:12px 16px;border:2px solid #0d2b5e;border-radius:10px;font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;outline:none;text-align:center"
                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'');lookupCode()"
                onkeydown="if(event.key==='Enter')saveCode()">
-        <button onclick="saveCode()" style="padding:11px 18px;background:#0d2b5e;color:#fff;border:none;border-radius:8px;font-size:20px;cursor:pointer">✓</button>
       </div>
-      <div id="codeInfo" style="font-size:13px;min-height:20px;margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px">
-        <button onclick="saveCode()" style="flex:1;padding:13px;background:#1a7a3c;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">✓ Salvar na coleção</button>
-        <button onclick="closeCodePanel()" style="flex:1;padding:13px;background:#f0f2f5;color:#666;border:1px solid #ddd;border-radius:10px;font-size:14px;cursor:pointer">✕ Cancelar</button>
-      </div>
+      <!-- Info em tempo real -->
+      <div id="codeInfo" style="font-size:13px;min-height:22px;margin-bottom:12px;padding:0 2px"></div>
+      <!-- Botão salvar -->
+      <button onclick="saveCode()" id="saveBtn"
+              style="width:100%;padding:14px;background:#1a7a3c;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;opacity:.4;transition:opacity .2s">
+        ✓ Adicionar à coleção
+      </button>
     </div>
 
-    <button class="abtn" id="camBtn" onclick="toggleCam()">📷 <span id="camBtnTxt">Iniciar câmera</span></button>
-    <!-- Botão manual sempre visível quando câmera está ativa -->
-    <button id="manualBtn" onclick="openCodePanel('')" style="display:none;width:calc(100% - 24px);margin:0 12px 10px;padding:12px;background:#fff;color:#0d2b5e;border:1.5px solid #0d2b5e;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer">✏ Digitar código manualmente</button>
+    <!-- Botão câmera discreto -->
+    <button class="abtn" id="camBtn" onclick="toggleCam()"
+            style="background:#0d2b5e;margin-bottom:8px">
+      📷 <span id="camBtnTxt">Ligar câmera</span>
+    </button>
+    <!-- Elementos mantidos para compatibilidade interna -->
+    <div id="modeInfoBar" style="display:none"></div>
+    <div class="apikey-banner" id="apikeyBanner" style="display:none">
+      ⚠️ Configure sua chave da API Anthropic <button onclick="openApiKeyModal()">Configurar</button>
+    </div>
+    <div id="codePanel" style="display:none"></div>
+    <div id="manualBtn" style="display:none"></div>
+    <div class="scan-mode-btns" style="display:none">
+      <button id="modeBack"></button><button id="modeFront"></button>
+    </div>
+    <div class="scan-fr" style="display:none"><div class="sline"></div></div>
+    <div class="scan-hint" id="scanHint" style="display:none"></div>
   </div>
 
   <!-- COLEÇÃO -->
@@ -958,37 +964,57 @@ function closeCodePanel(){
 function lookupCode(){
   const raw=document.getElementById('codeField').value.trim().toUpperCase().replace(/\s+/g,' ');
   const el=document.getElementById('codeInfo');
+  const btn=document.getElementById('saveBtn');
   const m=raw.match(/^([A-Z]{2,4})\s*(\d{1,2})$/);
   if(!m){
-    el.style.color='#888'; el.textContent=raw.length>1?'Formato: XXX N (ex: BRA 5, HAI 1)':'';
+    el.textContent=raw.length>1?'Formato: 2-4 letras + número  (ex: BRA 5, HAI 1, FWC 4)':'';
+    el.style.color='#888';
+    if(btn)btn.style.opacity='.4';
     return;
   }
   const prefix=m[1],pos=parseInt(m[2]);
   if(!CODE_MAP.hasOwnProperty(prefix)){
-    el.style.color='#c8282a'; el.textContent=`"${prefix}" não reconhecido. Verifique o código.`;
+    el.style.color='#c8282a';
+    el.textContent=`Código "${prefix}" não está no álbum. Verifique.`;
+    if(btn)btn.style.opacity='.4';
     return;
   }
   const num=codeToNumber(prefix,pos);
   if(!num){
-    el.style.color='#c8282a'; el.textContent=`Posição ${pos} inválida para ${prefix} (max 20)`;
+    el.style.color='#c8282a';
+    el.textContent=`Posição ${pos} inválida para ${prefix}`;
+    if(btn)btn.style.opacity='.4';
     return;
   }
   const info=getInfo(num);
   const owned=!!col[num];
-  el.style.color=owned?'#c8282a':'#1a7a3c';
-  el.textContent=`#${num} — ${info.name} · ${info.team}${owned?' ⚠ Já está na coleção':' ✓ Nova figurinha'}`;
+  el.style.color=owned?'#b07000':'#1a7a3c';
+  const icon=owned?'⚠':'✓';
+  const status=owned?'já está na coleção':'nova figurinha';
+  el.textContent=`${icon}  #${num} · ${info.name} · ${info.team} — ${status}`;
+  if(btn)btn.style.opacity='1';
 }
 function saveCode(){
   const raw=document.getElementById('codeField').value.trim().toUpperCase().replace(/\s+/g,' ');
   const m=raw.match(/^([A-Z]{2,4})\s*(\d{1,2})$/);
-  const el=document.getElementById('codeInfo');
-  if(!m){el.style.color='#c8282a';el.textContent='Código inválido.';return;}
+  if(!m) return;
   const num=codeToNumber(m[1],parseInt(m[2]));
-  if(!num){el.style.color='#c8282a';el.textContent='Código não mapeado.';return;}
+  if(!num) return;
   addSticker(num);
+  const info=getInfo(num);
   setSS(`✓ ${raw} salva!`,'ok');
-  closeCodePanel();
+  document.getElementById('codeField').value='';
+  document.getElementById('codeInfo').textContent='';
+  const btn=document.getElementById('saveBtn');
+  if(btn)btn.style.opacity='.4';
 }
+function openCodePanel(code){
+  const f=document.getElementById('codeField');
+  if(!f) return;
+  if(code){f.value=code;lookupCode();}
+  f.focus();
+}
+function closeCodePanel(){pendingStickers=[];if(camStream)startAutoScan();}
 
 // Localiza regiões escuras (badges) no topo-direito do frame por análise de pixels
 function findBadgesInFrame(canvas){
@@ -1363,10 +1389,8 @@ async function toggleCam(){
     document.getElementById('camOff').style.display='flex';
     document.getElementById('scanOv').style.display='none';
     document.getElementById('autoBadge').style.display='none';
-    document.getElementById('camBtnTxt').textContent='Iniciar câmera';
+    document.getElementById('camBtnTxt').textContent='Ligar câmera';
     document.getElementById('camBtn').classList.remove('red');
-    document.getElementById('manualBtn').style.display='none';
-    document.getElementById('codePanel').style.display='none';
     pendingStickers=[];
     return;
   }
@@ -1377,10 +1401,9 @@ async function toggleCam(){
     document.getElementById('camOff').style.display='none';
     document.getElementById('scanOv').style.display='flex';
     document.getElementById('autoBadge').style.display='block';
-    document.getElementById('camBtnTxt').textContent='Parar câmera';
+    document.getElementById('camBtnTxt').textContent='Desligar câmera';
     document.getElementById('camBtn').classList.add('red');
-    document.getElementById('manualBtn').style.display='block';
-    setSS('Aponte para o verso da figurinha','');
+    setSS('OCR ativo — ou digite o código abaixo','');
     startAutoScan();
   }catch(e){setSS('Câmera indisponível. Use a aba Coleção para marcar manualmente.','');}
 }
@@ -1411,21 +1434,18 @@ async function doAI(){
 
 async function doBackOCR(){
   scanning=true;
-  const badge=document.getElementById('autoBadge');
-  if(badge){badge.textContent='LENDO…';badge.classList.add('scanning');}
-  setSS('Analisando…','');
   try{
     const results=await runOCROnFrame();
     if(results&&results.length){
-      // OCR encontrou um código → abre painel pré-preenchido
-      openCodePanel(results[0].raw);
-    } else {
-      setSS('Procurando código…','');
+      // OCR funcionou: preenche o campo automaticamente
+      const f=document.getElementById('codeField');
+      if(f&&!f.value){
+        f.value=results[0].raw;
+        lookupCode();
+        setSS(`OCR: ${results[0].raw}`,'ok');
+      }
     }
-  }catch(e){
-    console.error('[OCR]',e);
-    setSS('Erro OCR — use o botão manual','');
-  }
+  }catch(e){console.error('[OCR]',e);}
   scanning=false;resetBadge();
 }
 
