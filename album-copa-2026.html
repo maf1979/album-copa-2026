@@ -944,26 +944,29 @@ async function runOCROnFrame(){
 
   const w=canvas.width, h=canvas.height;
 
-  // O badge fica no canto superior direito da FIGURINHA — não do frame.
-  // A figurinha costuma estar centralizada, então o badge fica em ~65-90% X, ~25-50% Y.
-  // Crop: metade direita do frame, de 5% a 65% de altura (cobre qualquer posição da figurinha).
-  const cx=Math.floor(w*0.42), cy=Math.floor(h*0.04);
-  const cw=w-cx, ch=Math.floor(h*0.62);
+  // Crop: LARGURA TOTAL, faixa vertical 12%-57%
+  // Cobre badges de qualquer posição horizontal (1 ou mais figurinhas)
+  const cx=0, cy=Math.floor(h*0.12);
+  const cw=w, ch=Math.floor(h*0.45);
 
-  // Escala 2× (mais rápido que 3×; o badge tem texto grande o suficiente)
-  const scale=2;
+  // Escala 3× — necessário para badges pequenos (múltiplas figurinhas no frame)
+  const scale=3;
   const proc=document.createElement('canvas');
   proc.width=cw*scale; proc.height=ch*scale;
   const ctx=proc.getContext('2d');
   ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
 
-  // Threshold adaptativo: badge escuro (cinza<115) → branco; resto → preto
-  // Resultado: fundo branco + texto preto, ideal para Tesseract
+  // Threshold tri-nível para isolar apenas os badges Panini:
+  //   cinza < 85   → fundo do badge (muito escuro) → branco
+  //   cinza > 195  → texto do badge (branco/claro) → preto
+  //   80-195       → fine-print e fundo médio       → cinza claro (220)
+  // Resultado: badge = texto preto nítido em fundo branco
+  //            fine-print = ruído cinza uniforme (OCR ignora)
   const imgData=ctx.getImageData(0,0,proc.width,proc.height);
   const d=imgData.data;
   for(let i=0;i<d.length;i+=4){
-    const gray=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8; // luminância ponderada
-    const v=gray<115?255:0;
+    const gray=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
+    const v=gray<85?255:gray>195?0:220;
     d[i]=d[i+1]=d[i+2]=v;
   }
   ctx.putImageData(imgData,0,0);
@@ -971,12 +974,12 @@ async function runOCROnFrame(){
   const worker=await initOCR();
   const {data:{text}}=await worker.recognize(proc);
   const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  // Captura TODOS os padrões: 2-4 letras + espaço opcional + 1-2 dígitos
-  const matches=[...clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)];
-  if(!matches.length) return [];
-  // Deduplica por código raw
+
+  // Captura todos os padrões e filtra APENAS os que existem no CODE_MAP
+  // Elimina falsos positivos como "EY 5", "TY 0" vindos do fine-print invertido
   const seen=new Set();
-  return matches.reduce((acc,m)=>{
+  return [...clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)].reduce((acc,m)=>{
+    if(!CODE_MAP.hasOwnProperty(m[1]))return acc; // rejeita código desconhecido
     const raw=`${m[1]} ${m[2]}`;
     if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
     return acc;
