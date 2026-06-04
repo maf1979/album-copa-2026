@@ -110,7 +110,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .scan-mode-btns{display:flex;gap:8px;padding:10px 12px 6px}
 .mode-btn{flex:1;padding:9px 6px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;color:#888;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .2s}
 .mode-btn.active{background:#0d2b5e;color:#fff;border-color:#0d2b5e}
-.scan-area{background:#000;margin:0 12px 8px;border-radius:14px;overflow:hidden;position:relative;height:52vw;max-height:340px}
+.scan-area{background:#000;margin:0 12px 8px;border-radius:14px;overflow:hidden;position:relative;aspect-ratio:3/4}
 #vEl{width:100%;height:100%;object-fit:cover;display:none}
 .scan-ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px}
 .scan-fr{width:190px;height:250px;border:2px solid rgba(255,255,255,.6);border-radius:8px;position:relative}
@@ -411,9 +411,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="mode-btn active" id="modeBack" onclick="setMode('back')">📷 Verso — OCR grátis</button>
       <button class="mode-btn" id="modeFront" onclick="setMode('front')">✨ Frente — requer IA</button>
     </div>
-    <div id="modeInfoBar" style="margin:0 12px 6px;padding:8px 12px;border-radius:8px;font-size:12px;background:#e8f5e9;color:#1a7a3c;border:1px solid #b2dfdb">
-      Modo verso: lê o código impresso automaticamente via OCR, sem custos.
-    </div>
+    <div id="modeInfoBar" style="display:none"></div>
     <div class="apikey-banner" id="apikeyBanner">
       ⚠️ Configure sua chave da API Anthropic para usar o reconhecimento por IA
       <button onclick="openApiKeyModal()">Configurar</button>
@@ -427,14 +425,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="scan-ov" id="scanOv">
         <div class="scan-fr">
           <div class="sline"></div>
-          <!-- Indicador da posição do badge Panini -->
           <div style="position:absolute;top:6px;right:6px;border:2px dashed rgba(240,192,64,.95);border-radius:5px;width:58px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(240,192,64,.95);font-weight:700;letter-spacing:.5px;background:rgba(0,0,0,.25)">CÓDIGO</div>
         </div>
         <div class="scan-hint" id="scanHint">Alinhe o código no canto superior direito com a marca dourada</div>
+        <!-- Status OCR sobreposto, sem ocupar espaço fora da câmera -->
+        <div id="ssTxt" style="background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;max-width:90%;text-align:center;margin-top:6px;display:none"></div>
       </div>
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
-    <div class="scan-status"><p class="ss" id="ssTxt">Pronto para escanear</p></div>
+    <!-- Status OCR embutido na área de scan como overlay -->
+    <div id="ssTxt" class="ss" style="display:none"></div>
     <!-- Debug: mostra a imagem que o OCR está processando -->
     <div id="ocrDebugWrap" style="display:none;margin:0 12px 6px;background:#111;border-radius:10px;overflow:hidden">
       <div style="font-size:10px;color:#888;padding:4px 8px">Prévia OCR (zona A)</div>
@@ -1235,7 +1235,13 @@ async function toggleCam(){
     startAutoScan();
   }catch(e){setSS('Câmera indisponível. Use a aba Coleção para marcar manualmente.','');}
 }
-function setSS(msg,type){const el=document.getElementById('ssTxt');if(el){el.textContent=msg;el.className='ss'+(type?' '+type:'');}}
+function setSS(msg,type){
+  const el=document.getElementById('ssTxt');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.display=msg?'block':'none';
+  el.style.background=type==='ok'?'rgba(26,122,60,.85)':type==='dup'?'rgba(200,40,42,.85)':'rgba(0,0,0,.6)';
+}
 
 // ── Auto scan loop ──
 function startAutoScan(){
