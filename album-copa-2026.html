@@ -935,7 +935,7 @@ async function initOCR(){
   ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
   await ocrWorker.setParameters({
     tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-    tessedit_pageseg_mode:'6', // bloco uniforme — mais tolerante para badge isolado
+    tessedit_pageseg_mode:'11', // sparse text — versão original que lia o badge
   });
   return ocrWorker;
 }
@@ -1093,24 +1093,39 @@ function parseOCRText(text){
 
 async function runOCROnFrame(){
   const vid=document.getElementById('vEl');
-  if(!vid.videoWidth||!vid.videoHeight) return [];
   const canvas=document.getElementById('captureCanvas');
-  canvas.width=vid.videoWidth;
-  canvas.height=vid.videoHeight;
+  canvas.width=vid.videoWidth||640;
+  canvas.height=vid.videoHeight||480;
   canvas.getContext('2d').drawImage(vid,0,0);
 
-  // Localiza o badge (região escura) — processa apenas o primeiro
-  const badges=findBadgesInFrame(canvas);
-  console.log('[OCR] badges:',badges.length,badges[0]);
-  if(!badges.length) return [];
+  const w=canvas.width, h=canvas.height;
 
-  const badge=badges[0];
-  const proc=cropForOCR(canvas,badge.x,badge.y,badge.w,badge.h);
+  // Crop original do commit 8692816 — metade direita, faixa longa vertical
+  const cx=Math.floor(w*0.42), cy=Math.floor(h*0.04);
+  const cw=w-cx, ch=Math.floor(h*0.62);
+
+  // Scale 2× — mesma versão que lia o badge
+  const scale=2;
+  const proc=document.createElement('canvas');
+  proc.width=cw*scale; proc.height=ch*scale;
+  const ctx=proc.getContext('2d');
+  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
+
+  // Threshold original: cinza < 115 → branco (badge escuro); resto → preto
+  const imgData=ctx.getImageData(0,0,proc.width,proc.height);
+  const d=imgData.data;
+  for(let i=0;i<d.length;i+=4){
+    const g=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
+    const v=g<115?255:0;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(imgData,0,0);
+
   const worker=await initOCR();
   const {data:{text}}=await worker.recognize(proc);
-  const result=parseOCRText(text);
-  console.log('[OCR] resultado:',result);
-  return result.slice(0,1); // apenas 1 resultado
+  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
+  console.log('[OCR raw]',clean);
+  return parseOCRText(text).slice(0,1); // apenas 1 resultado
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
