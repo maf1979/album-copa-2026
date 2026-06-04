@@ -131,22 +131,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ss.proc{color:#0d2b5e;font-weight:500}
 .ss.ok{color:#1a7a3c;font-weight:500}
 .ss.dup{color:#c8282a;font-weight:500}
-/* Painel de confirmação */
-.confirm-panel{margin:0 12px 8px;background:#fff;border:2px solid #0d2b5e;border-radius:14px;padding:14px;display:none;flex-direction:column;gap:12px}
+/* Painel de confirmação multi-sticker */
+.confirm-panel{margin:0 12px 8px;background:#fff;border:2px solid #0d2b5e;border-radius:14px;padding:12px;display:none;flex-direction:column;gap:10px}
 .confirm-panel.show{display:flex}
-.confirm-sticker{display:flex;align-items:center;gap:12px}
-.confirm-thumb{width:50px;height:66px;border-radius:8px;background:#0d2b5e;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#fff;font-weight:700;text-align:center;line-height:1.2}
-.confirm-info{flex:1}
-.confirm-num{font-size:18px;font-weight:700;color:#0d2b5e}
-.confirm-name{font-size:14px;font-weight:500;color:#222;margin-top:2px}
-.confirm-team{font-size:12px;color:#888}
-.confirm-conf{font-size:11px;margin-top:4px}
-.conf-high{color:#1a7a3c;font-weight:600}
-.conf-med{color:#d4a017;font-weight:600}
-.conf-low{color:#c8282a;font-weight:600}
-.confirm-status{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;display:inline-block;margin-top:4px}
+.confirm-header{display:flex;align-items:center;justify-content:space-between}
+.confirm-title{font-size:13px;font-weight:700;color:#0d2b5e}
+.confirm-selall{font-size:11px;color:#185FA5;cursor:pointer;background:none;border:none;padding:2px 6px;border-radius:4px}
+.confirm-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+.confirm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f9fa;border-radius:10px;border:2px solid #e0e0e0;cursor:pointer;transition:all .15s;user-select:none}
+.confirm-item.checked{background:#eef3ff;border-color:#0d2b5e}
+.confirm-item.unmapped{opacity:.55}
+.confirm-cb{width:18px;height:18px;accent-color:#0d2b5e;cursor:pointer;flex-shrink:0}
+.ci-thumb{width:38px;height:50px;border-radius:6px;background:#0d2b5e;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff;font-weight:700;text-align:center;line-height:1.2}
+.ci-info{flex:1;min-width:0}
+.ci-num{font-size:13px;font-weight:700;color:#222}
+.ci-name{font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-team{font-size:10px;color:#888}
+.ci-badges{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.confirm-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-block}
 .cst-new{background:#e8f5e9;color:#1a7a3c}
 .cst-dup{background:#fce8e8;color:#a32d2d}
+.cst-unk{background:#fff3e0;color:#b07000}
 .confirm-actions{display:flex;gap:8px}
 .cbtn{flex:1;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s}
 .cbtn:active{opacity:.8}
@@ -430,21 +435,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
     <div class="scan-status"><p class="ss" id="ssTxt">Pronto para escanear</p></div>
-    <!-- Painel de confirmação antes de salvar -->
+    <!-- Painel de confirmação multi-sticker -->
     <div class="confirm-panel" id="confirmPanel">
-      <div class="confirm-sticker">
-        <div class="confirm-thumb" id="cThumb">#001</div>
-        <div class="confirm-info">
-          <div class="confirm-num" id="cNum">#001</div>
-          <div class="confirm-name" id="cName">—</div>
-          <div class="confirm-team" id="cTeam">—</div>
-          <div class="confirm-conf" id="cConf"></div>
-          <span class="confirm-status" id="cStatus">—</span>
-        </div>
+      <div class="confirm-header">
+        <span class="confirm-title" id="confirmTitle">0 figurinha encontrada</span>
+        <button class="confirm-selall" onclick="toggleAllConfirm()">Todas/Nenhuma</button>
       </div>
+      <div class="confirm-list" id="confirmList"></div>
       <div class="confirm-actions">
-        <button class="cbtn cbtn-confirm" onclick="confirmSticker()">✓ Confirmar e salvar</button>
-        <button class="cbtn cbtn-discard" onclick="discardSticker()">✕ Descartar</button>
+        <button class="cbtn cbtn-confirm" onclick="confirmStickers()">✓ Salvar selecionadas</button>
+        <button class="cbtn cbtn-discard" onclick="discardStickers()">✕ Descartar</button>
       </div>
     </div>
     <button class="abtn" id="camBtn" onclick="toggleCam()">📷 <span id="camBtnTxt">Iniciar câmera</span></button>
@@ -883,7 +883,7 @@ const FWC_NAMES=["Emblema Oficial","Emblema Foil","Mascote Oficial","Lema Oficia
 
 let col={};
 let camStream=null,scanning=false,activeFilter='all',scanMode='back',cChart=null,groupsExpanded=false;
-let autoScanTimer=null,pendingSticker=null;
+let autoScanTimer=null,pendingStickers=[];
 let ocrWorker=null;
 
 // Prefixo Panini → nome do time conforme estrutura real do álbum
@@ -971,10 +971,16 @@ async function runOCROnFrame(){
   const worker=await initOCR();
   const {data:{text}}=await worker.recognize(proc);
   const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  // Padrão: 2-4 letras + espaço opcional + 1-2 dígitos (ex: "HAI 1", "FWC 4", "BRA 15")
-  const m=clean.match(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/);
-  if(!m) return null;
-  return {prefix:m[1], pos:parseInt(m[2]), raw:`${m[1]} ${m[2]}`};
+  // Captura TODOS os padrões: 2-4 letras + espaço opcional + 1-2 dígitos
+  const matches=[...clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)];
+  if(!matches.length) return [];
+  // Deduplica por código raw
+  const seen=new Set();
+  return matches.reduce((acc,m)=>{
+    const raw=`${m[1]} ${m[2]}`;
+    if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
+    return acc;
+  },[]);
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
@@ -1137,7 +1143,7 @@ function setMode(m){
     bar.innerHTML='✨ Modo frente requer chave de API Anthropic. <button onclick="openApiKeyModal()" style="margin-left:6px;padding:3px 8px;border-radius:5px;border:none;background:#0d2b5e;color:#fff;font-size:11px;cursor:pointer">Configurar</button>';
   }
   checkApiBanner();
-  if(camStream){stopAutoScan();document.getElementById('confirmPanel').classList.remove('show');pendingSticker=null;startAutoScan();}
+  if(camStream){stopAutoScan();document.getElementById('confirmPanel').classList.remove('show');pendingStickers=[];startAutoScan();}
 }
 function nav(p){
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
@@ -1188,7 +1194,7 @@ async function toggleCam(){
     document.getElementById('camBtnTxt').textContent='Iniciar câmera';
     document.getElementById('camBtn').classList.remove('red');
     document.getElementById('confirmPanel').classList.remove('show');
-    pendingSticker=null;
+    pendingStickers=[];
     return;
   }
   if(scanMode==='front' && !getApiKey()){openApiKeyModal();return;}
@@ -1210,7 +1216,7 @@ function setSS(msg,type){const el=document.getElementById('ssTxt');if(el){el.tex
 function startAutoScan(){
   stopAutoScan();
   autoScanTimer=setInterval(()=>{
-    if(!scanning&&!pendingSticker&&camStream)doAI();
+    if(!scanning&&!pendingStickers.length&&camStream)doAI();
   },3500);
 }
 function stopAutoScan(){
@@ -1218,7 +1224,7 @@ function stopAutoScan(){
 }
 
 async function doAI(){
-  if(!camStream||scanning||pendingSticker)return;
+  if(!camStream||scanning||pendingStickers.length)return;
   if(scanMode==='back') await doBackOCR();
   else await doFrontAI();
 }
@@ -1228,22 +1234,25 @@ async function doBackOCR(){
   const badge=document.getElementById('autoBadge');
   if(badge){badge.textContent='LENDO…';badge.classList.add('scanning');}
   try{
-    const result=await runOCROnFrame();
-    if(result){
-      const num=codeToNumber(result.prefix,result.pos);
-      const teamName=CODE_MAP[result.prefix]||null;
-      pendingSticker={
-        found:true, number:num, code:result.raw,
-        prefix:result.prefix, pos:result.pos,
-        player_name: num ? getInfo(num).name : null,
-        team: num ? getInfo(num).team : (teamName||result.prefix),
-        confidence:'ocr',
-        unmapped: !num,
-      };
-      showConfirmPanel(pendingSticker);
+    const results=await runOCROnFrame(); // array
+    if(results&&results.length){
+      const stickers=results.map(r=>{
+        const num=codeToNumber(r.prefix,r.pos);
+        return{
+          found:true, number:num, code:r.raw,
+          prefix:r.prefix, pos:r.pos,
+          player_name:num?getInfo(num).name:null,
+          team:num?getInfo(num).team:(CODE_MAP[r.prefix]||r.prefix),
+          confidence:'ocr', unmapped:!num,
+          checked:!!num, // só pré-seleciona os mapeados
+        };
+      });
+      pendingStickers=stickers;
+      showConfirmPanel(stickers);
       stopAutoScan();
-      setSS('Código lido — confirme antes de salvar','');
-    } else {
+      const n=stickers.length;
+      setSS(`${n} código${n>1?'s':''} lido${n>1?'s':''} — confirme antes de salvar`,'');
+    }else{
       setSS('Badge não encontrado. Ajuste a posição…','');
     }
   }catch(e){setSS('Erro OCR: '+e.message,'');}
@@ -1288,8 +1297,9 @@ Responda SOMENTE JSON sem markdown:
     const txt=data.content?.find(c=>c.type==='text')?.text||'{}';
     let info;try{info=JSON.parse(txt.replace(/```json[\s\S]*?```|```/g,'').trim());}catch{info={found:false};}
     if(info.found&&info.number>=1&&info.number<=980){
-      pendingSticker=info;
-      showConfirmPanel(info);
+      const s={...info,checked:true,unmapped:false,code:null};
+      pendingStickers=[s];
+      showConfirmPanel([s]);
       stopAutoScan();
       setSS('Figurinha identificada — confirme antes de salvar','');
     } else {
@@ -1304,58 +1314,73 @@ function resetBadge(){
   if(badge&&camStream){badge.textContent='AUTO';badge.classList.remove('scanning');}
 }
 
-function showConfirmPanel(info){
-  const num=info.number;
-  const codeLabel=info.code?` (${info.code})`:'';
+function showConfirmPanel(stickers){
+  pendingStickers=stickers;
+  const n=stickers.length;
+  document.getElementById('confirmTitle').textContent=
+    `${n} figurinha${n!==1?'s':''} encontrada${n!==1?'s':''}`;
 
-  if(num){
-    const isOwned=!!col[num];
-    document.getElementById('cThumb').textContent='#'+String(num).padStart(3,'0');
-    document.getElementById('cNum').textContent='#'+String(num).padStart(3,'0')+codeLabel;
-    document.getElementById('cName').textContent=info.player_name||getInfo(num).name;
-    document.getElementById('cTeam').textContent=info.team||getInfo(num).team;
-    const st=document.getElementById('cStatus');
-    st.textContent=isOwned?'⚠ Figurinha repetida':'✓ Nova figurinha';
-    st.className='confirm-status '+(isOwned?'cst-dup':'cst-new');
-  } else {
-    // Código lido mas time não mapeado no app
-    document.getElementById('cThumb').textContent=info.code||'?';
-    document.getElementById('cNum').textContent=info.code||'?';
-    document.getElementById('cName').textContent='Time não catalogado';
-    document.getElementById('cTeam').textContent=info.team||info.prefix||'—';
-    const st=document.getElementById('cStatus');
-    st.textContent='⚠ Não está na lista do app';
-    st.className='confirm-status cst-dup';
-  }
+  document.getElementById('confirmList').innerHTML=stickers.map((s,i)=>{
+    const num=s.number;
+    const label=num?'#'+String(num).padStart(3,'0'):s.code||'?';
+    const name=num?(s.player_name||getInfo(num).name):'Time não catalogado';
+    const team=s.team||(num?getInfo(num).team:'—');
+    const isOwned=num&&!!col[num];
+    const stCls=s.unmapped?'cst-unk':isOwned?'cst-dup':'cst-new';
+    const stTxt=s.unmapped?'⚠ Não mapeado':isOwned?'⚠ Repetida':'✓ Nova';
+    const confTxt=s.confidence==='ocr'?'OCR':`IA ${s.confidence||''}`;
+    const codeTag=s.code?`<span style="font-size:9px;color:#999">${s.code}</span>`:'';
+    return`<div class="confirm-item${s.checked?' checked':''}${s.unmapped?' unmapped':''}" onclick="toggleConfirmItem(${i})">
+      <input class="confirm-cb" type="checkbox" ${s.checked?'checked':''} onclick="event.stopPropagation();toggleConfirmItem(${i})">
+      <div class="ci-thumb">${label}</div>
+      <div class="ci-info">
+        <div class="ci-num">${label}</div>
+        <div class="ci-name">${name}</div>
+        <div class="ci-team">${team}</div>
+        <div class="ci-badges">
+          <span class="confirm-status ${stCls}">${stTxt}</span>
+          <span style="font-size:9px;color:#aaa">${confTxt}</span>
+          ${codeTag}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
-  const confEl=document.getElementById('cConf');
-  if(info.confidence==='ocr'){
-    confEl.textContent='Lido por OCR';confEl.className='confirm-conf conf-high';
-  } else {
-    const confMap={alta:'conf-high',media:'conf-med',baixa:'conf-low'};
-    confEl.textContent='IA — confiança: '+(info.confidence||'—');
-    confEl.className='confirm-conf '+(confMap[info.confidence]||'');
-  }
   document.getElementById('confirmPanel').classList.add('show');
 }
 
-function confirmSticker(){
-  if(!pendingSticker)return;
-  if(pendingSticker.number){
-    addSticker(pendingSticker.number);
-    setSS('Figurinha salva na coleção!','ok');
-  } else {
-    setSS('Time não catalogado — figurinha descartada.','');
+function toggleConfirmItem(i){
+  if(pendingStickers[i].unmapped)return; // não permite selecionar não-mapeados
+  pendingStickers[i].checked=!pendingStickers[i].checked;
+  const items=document.querySelectorAll('#confirmList .confirm-item');
+  if(items[i]){
+    items[i].classList.toggle('checked',pendingStickers[i].checked);
+    const cb=items[i].querySelector('.confirm-cb');
+    if(cb)cb.checked=pendingStickers[i].checked;
   }
-  pendingSticker=null;
+}
+
+function toggleAllConfirm(){
+  const anyChecked=pendingStickers.some(s=>s.checked&&!s.unmapped);
+  pendingStickers.forEach(s=>{if(!s.unmapped)s.checked=!anyChecked;});
+  showConfirmPanel(pendingStickers);
+}
+
+function confirmStickers(){
+  let saved=0;
+  for(const s of pendingStickers){
+    if(s.checked&&s.number){addSticker(s.number);saved++;}
+  }
+  pendingStickers=[];
   document.getElementById('confirmPanel').classList.remove('show');
+  setSS(saved?`${saved} figurinha${saved>1?'s':''} salva${saved>1?'s':''}!`:'Nenhuma salva.',saved?'ok':'');
   if(camStream)startAutoScan();
 }
 
-function discardSticker(){
-  pendingSticker=null;
+function discardStickers(){
+  pendingStickers=[];
   document.getElementById('confirmPanel').classList.remove('show');
-  setSS('Descartada. Buscando próxima...','');
+  setSS('Descartadas. Buscando próxima…','');
   if(camStream)startAutoScan();
 }
 
