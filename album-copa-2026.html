@@ -420,8 +420,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <video id="vEl" autoplay playsinline muted></video>
       <div class="scan-ov" id="scanOv">
-        <div class="scan-fr"><div class="sline"></div></div>
-        <div class="scan-hint" id="scanHint">Posicione o verso da figurinha no quadro</div>
+        <div class="scan-fr">
+          <div class="sline"></div>
+          <!-- Indicador da posição do badge Panini -->
+          <div style="position:absolute;top:6px;right:6px;border:2px dashed rgba(240,192,64,.95);border-radius:5px;width:58px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(240,192,64,.95);font-weight:700;letter-spacing:.5px;background:rgba(0,0,0,.25)">CÓDIGO</div>
+        </div>
+        <div class="scan-hint" id="scanHint">Alinhe o código no canto superior direito com a marca dourada</div>
       </div>
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
@@ -922,11 +926,11 @@ function codeToNumber(prefix, pos){
 
 async function initOCR(){
   if(ocrWorker) return ocrWorker;
-  setSS('Inicializando OCR (primeira vez demora ~10s)…','proc');
+  setSS('Inicializando OCR (primeira vez ~10s)…','proc');
   ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
   await ocrWorker.setParameters({
     tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-    tessedit_pageseg_mode:'7',
+    tessedit_pageseg_mode:'11', // sparse text: encontra texto em qualquer posição da imagem
   });
   return ocrWorker;
 }
@@ -938,29 +942,37 @@ async function runOCROnFrame(){
   canvas.height=vid.videoHeight||480;
   canvas.getContext('2d').drawImage(vid,0,0);
 
-  // Recorta o canto superior direito onde fica o badge (≈40% largura, 22% altura)
   const w=canvas.width, h=canvas.height;
-  const cx=Math.floor(w*0.58), cy=0, cw=w-cx, ch=Math.floor(h*0.24);
-  const scale=3;
+
+  // O badge fica no canto superior direito da FIGURINHA — não do frame.
+  // A figurinha costuma estar centralizada, então o badge fica em ~65-90% X, ~25-50% Y.
+  // Crop: metade direita do frame, de 5% a 65% de altura (cobre qualquer posição da figurinha).
+  const cx=Math.floor(w*0.42), cy=Math.floor(h*0.04);
+  const cw=w-cx, ch=Math.floor(h*0.62);
+
+  // Escala 2× (mais rápido que 3×; o badge tem texto grande o suficiente)
+  const scale=2;
   const proc=document.createElement('canvas');
   proc.width=cw*scale; proc.height=ch*scale;
   const ctx=proc.getContext('2d');
   ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
 
-  // Inverte cores: o badge é escuro com texto branco → OCR prefere texto escuro em fundo claro
+  // Threshold adaptativo: badge escuro (cinza<115) → branco; resto → preto
+  // Resultado: fundo branco + texto preto, ideal para Tesseract
   const imgData=ctx.getImageData(0,0,proc.width,proc.height);
-  for(let i=0;i<imgData.data.length;i+=4){
-    imgData.data[i]=255-imgData.data[i];
-    imgData.data[i+1]=255-imgData.data[i+1];
-    imgData.data[i+2]=255-imgData.data[i+2];
+  const d=imgData.data;
+  for(let i=0;i<d.length;i+=4){
+    const gray=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8; // luminância ponderada
+    const v=gray<115?255:0;
+    d[i]=d[i+1]=d[i+2]=v;
   }
   ctx.putImageData(imgData,0,0);
 
   const worker=await initOCR();
   const {data:{text}}=await worker.recognize(proc);
   const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  // Extrai padrão: 2-4 letras maiúsculas + espaço opcional + 1-2 dígitos
-  const m=clean.match(/\b([A-Z]{2,4})\s*(\d{1,2})\b/);
+  // Padrão: 2-4 letras + espaço opcional + 1-2 dígitos (ex: "HAI 1", "FWC 4", "BRA 15")
+  const m=clean.match(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/);
   if(!m) return null;
   return {prefix:m[1], pos:parseInt(m[2]), raw:`${m[1]} ${m[2]}`};
 }
@@ -1115,7 +1127,7 @@ function setMode(m){
   scanMode=m;
   document.getElementById('modeBack').classList.toggle('active',m==='back');
   document.getElementById('modeFront').classList.toggle('active',m==='front');
-  document.getElementById('scanHint').textContent=m==='back'?'Posicione o verso da figurinha no quadro':'Posicione a frente da figurinha colada no álbum';
+  document.getElementById('scanHint').textContent=m==='back'?'Alinhe o código no canto superior direito com a marca dourada':'Posicione a frente da figurinha colada no álbum';
   const bar=document.getElementById('modeInfoBar');
   if(m==='back'){
     bar.style.background='#e8f5e9';bar.style.color='#1a7a3c';bar.style.borderColor='#b2dfdb';
