@@ -419,7 +419,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="scan-area">
       <div class="camoff" id="camOff">
         <div class="cam-icon">📷</div>
-        <p>Toque em "Iniciar câmera" para escanear figurinhas automaticamente</p>
+        <p>Toque em "Iniciar câmera" para escanear figurinhas</p>
       </div>
       <video id="vEl" autoplay playsinline muted></video>
       <div class="scan-ov" id="scanOv">
@@ -427,32 +427,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="sline"></div>
           <div style="position:absolute;top:6px;right:6px;border:2px dashed rgba(240,192,64,.95);border-radius:5px;width:58px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(240,192,64,.95);font-weight:700;letter-spacing:.5px;background:rgba(0,0,0,.25)">CÓDIGO</div>
         </div>
-        <div class="scan-hint" id="scanHint">Alinhe o código no canto superior direito com a marca dourada</div>
-        <!-- Status OCR sobreposto, sem ocupar espaço fora da câmera -->
-        <div id="ssTxt" style="background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;max-width:90%;text-align:center;margin-top:6px;display:none"></div>
+        <div class="scan-hint" id="scanHint">Aponte o verso da figurinha para a câmera</div>
+        <div id="ssTxt" style="background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:5px 14px;border-radius:20px;max-width:90%;text-align:center;margin-top:6px;display:none"></div>
       </div>
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
-    <!-- Status OCR embutido na área de scan como overlay -->
-    <div id="ssTxt" class="ss" style="display:none"></div>
-    <!-- Debug: mostra a imagem que o OCR está processando -->
-    <div id="ocrDebugWrap" style="display:none;margin:0 12px 6px;background:#111;border-radius:10px;overflow:hidden">
-      <div style="font-size:10px;color:#888;padding:4px 8px">Prévia OCR (zona A)</div>
-      <canvas id="ocrDebugCanvas" style="width:100%;display:block"></canvas>
-    </div>
-    <!-- Painel de confirmação multi-sticker -->
-    <div class="confirm-panel" id="confirmPanel">
-      <div class="confirm-header">
-        <span class="confirm-title" id="confirmTitle">0 figurinha encontrada</span>
-        <button class="confirm-selall" onclick="toggleAllConfirm()">Todas/Nenhuma</button>
+
+    <!-- Painel de código: OCR preenche automaticamente, usuário confirma/corrige -->
+    <div id="codePanel" style="display:none;margin:6px 12px 4px;background:#fff;border:2px solid #0d2b5e;border-radius:14px;padding:14px">
+      <div style="font-size:12px;color:#555;margin-bottom:8px;font-weight:500">Confirme o código da figurinha:</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="codeField" type="text" placeholder="Ex: BRA 5" maxlength="8"
+               style="flex:1;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:18px;font-weight:700;letter-spacing:2px;text-transform:uppercase;outline:none"
+               oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'');lookupCode()"
+               onkeydown="if(event.key==='Enter')saveCode()">
+        <button onclick="saveCode()" style="padding:11px 18px;background:#0d2b5e;color:#fff;border:none;border-radius:8px;font-size:20px;cursor:pointer">✓</button>
       </div>
-      <div class="confirm-list" id="confirmList"></div>
-      <div class="confirm-actions">
-        <button class="cbtn cbtn-confirm" onclick="confirmStickers()">✓ Salvar selecionadas</button>
-        <button class="cbtn cbtn-discard" onclick="discardStickers()">✕ Descartar</button>
+      <div id="codeInfo" style="font-size:13px;min-height:20px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveCode()" style="flex:1;padding:13px;background:#1a7a3c;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">✓ Salvar na coleção</button>
+        <button onclick="closeCodePanel()" style="flex:1;padding:13px;background:#f0f2f5;color:#666;border:1px solid #ddd;border-radius:10px;font-size:14px;cursor:pointer">✕ Cancelar</button>
       </div>
     </div>
+
     <button class="abtn" id="camBtn" onclick="toggleCam()">📷 <span id="camBtnTxt">Iniciar câmera</span></button>
+    <!-- Botão manual sempre visível quando câmera está ativa -->
+    <button id="manualBtn" onclick="openCodePanel('')" style="display:none;width:calc(100% - 24px);margin:0 12px 10px;padding:12px;background:#fff;color:#0d2b5e;border:1.5px solid #0d2b5e;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer">✏ Digitar código manualmente</button>
   </div>
 
   <!-- COLEÇÃO -->
@@ -935,9 +935,59 @@ async function initOCR(){
   ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
   await ocrWorker.setParameters({
     tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-    tessedit_pageseg_mode:'7', // linha única — badge é sempre 1 linha de texto
+    tessedit_pageseg_mode:'6', // bloco uniforme — mais tolerante para badge isolado
   });
   return ocrWorker;
+}
+
+// ── Painel de código (manual + OCR) ──────────────────────────
+function openCodePanel(code){
+  stopAutoScan();
+  const f=document.getElementById('codeField');
+  f.value=code||'';
+  document.getElementById('codeInfo').textContent='';
+  document.getElementById('codePanel').style.display='block';
+  if(code) lookupCode();
+  setTimeout(()=>f.focus(),150);
+}
+function closeCodePanel(){
+  document.getElementById('codePanel').style.display='none';
+  pendingStickers=[];
+  if(camStream) startAutoScan();
+}
+function lookupCode(){
+  const raw=document.getElementById('codeField').value.trim().toUpperCase().replace(/\s+/g,' ');
+  const el=document.getElementById('codeInfo');
+  const m=raw.match(/^([A-Z]{2,4})\s*(\d{1,2})$/);
+  if(!m){
+    el.style.color='#888'; el.textContent=raw.length>1?'Formato: XXX N (ex: BRA 5, HAI 1)':'';
+    return;
+  }
+  const prefix=m[1],pos=parseInt(m[2]);
+  if(!CODE_MAP.hasOwnProperty(prefix)){
+    el.style.color='#c8282a'; el.textContent=`"${prefix}" não reconhecido. Verifique o código.`;
+    return;
+  }
+  const num=codeToNumber(prefix,pos);
+  if(!num){
+    el.style.color='#c8282a'; el.textContent=`Posição ${pos} inválida para ${prefix} (max 20)`;
+    return;
+  }
+  const info=getInfo(num);
+  const owned=!!col[num];
+  el.style.color=owned?'#c8282a':'#1a7a3c';
+  el.textContent=`#${num} — ${info.name} · ${info.team}${owned?' ⚠ Já está na coleção':' ✓ Nova figurinha'}`;
+}
+function saveCode(){
+  const raw=document.getElementById('codeField').value.trim().toUpperCase().replace(/\s+/g,' ');
+  const m=raw.match(/^([A-Z]{2,4})\s*(\d{1,2})$/);
+  const el=document.getElementById('codeInfo');
+  if(!m){el.style.color='#c8282a';el.textContent='Código inválido.';return;}
+  const num=codeToNumber(m[1],parseInt(m[2]));
+  if(!num){el.style.color='#c8282a';el.textContent='Código não mapeado.';return;}
+  addSticker(num);
+  setSS(`✓ ${raw} salva!`,'ok');
+  closeCodePanel();
 }
 
 // Localiza regiões escuras (badges) no topo-direito do frame por análise de pixels
@@ -1049,22 +1099,18 @@ async function runOCROnFrame(){
   canvas.height=vid.videoHeight;
   canvas.getContext('2d').drawImage(vid,0,0);
 
-  // Localiza badges por análise de pixels (região escura no topo-direito)
+  // Localiza o badge (região escura) — processa apenas o primeiro
   const badges=findBadgesInFrame(canvas);
-  console.log('[OCR] badges encontrados:',badges.length,badges);
+  console.log('[OCR] badges:',badges.length,badges[0]);
   if(!badges.length) return [];
 
+  const badge=badges[0];
+  const proc=cropForOCR(canvas,badge.x,badge.y,badge.w,badge.h);
   const worker=await initOCR();
-  const seen=new Set(),results=[];
-
-  for(const badge of badges){
-    const proc=cropForOCR(canvas,badge.x,badge.y,badge.w,badge.h);
-    const {data:{text}}=await worker.recognize(proc);
-    for(const r of parseOCRText(text)){
-      if(!seen.has(r.raw)){seen.add(r.raw);results.push(r);}
-    }
-  }
-  return results;
+  const {data:{text}}=await worker.recognize(proc);
+  const result=parseOCRText(text);
+  console.log('[OCR] resultado:',result);
+  return result.slice(0,1); // apenas 1 resultado
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
@@ -1277,7 +1323,8 @@ async function toggleCam(){
     document.getElementById('autoBadge').style.display='none';
     document.getElementById('camBtnTxt').textContent='Iniciar câmera';
     document.getElementById('camBtn').classList.remove('red');
-    document.getElementById('confirmPanel').classList.remove('show');
+    document.getElementById('manualBtn').style.display='none';
+    document.getElementById('codePanel').style.display='none';
     pendingStickers=[];
     return;
   }
@@ -1290,7 +1337,8 @@ async function toggleCam(){
     document.getElementById('autoBadge').style.display='block';
     document.getElementById('camBtnTxt').textContent='Parar câmera';
     document.getElementById('camBtn').classList.add('red');
-    setSS('Reconhecimento automático ativo — aponte para o verso da figurinha','');
+    document.getElementById('manualBtn').style.display='block';
+    setSS('Aponte para o verso da figurinha','');
     startAutoScan();
   }catch(e){setSS('Câmera indisponível. Use a aba Coleção para marcar manualmente.','');}
 }
@@ -1323,30 +1371,19 @@ async function doBackOCR(){
   scanning=true;
   const badge=document.getElementById('autoBadge');
   if(badge){badge.textContent='LENDO…';badge.classList.add('scanning');}
-  setSS('Analisando figurinha…','');
+  setSS('Analisando…','');
   try{
-    const results=await runOCROnFrame(); // array
+    const results=await runOCROnFrame();
     if(results&&results.length){
-      const stickers=results.map(r=>{
-        const num=codeToNumber(r.prefix,r.pos);
-        return{
-          found:true, number:num, code:r.raw,
-          prefix:r.prefix, pos:r.pos,
-          player_name:num?getInfo(num).name:null,
-          team:num?getInfo(num).team:(CODE_MAP[r.prefix]||r.prefix),
-          confidence:'ocr', unmapped:!num,
-          checked:!!num, // só pré-seleciona os mapeados
-        };
-      });
-      pendingStickers=stickers;
-      showConfirmPanel(stickers);
-      stopAutoScan();
-      const n=stickers.length;
-      setSS(`${n} código${n>1?'s':''} lido${n>1?'s':''} — confirme antes de salvar`,'');
-    }else{
-      setSS('Badge não encontrado. Ajuste a posição…','');
+      // OCR encontrou um código → abre painel pré-preenchido
+      openCodePanel(results[0].raw);
+    } else {
+      setSS('Procurando código…','');
     }
-  }catch(e){setSS('Erro OCR: '+e.message,'');}
+  }catch(e){
+    console.error('[OCR]',e);
+    setSS('Erro OCR — use o botão manual','');
+  }
   scanning=false;resetBadge();
 }
 
