@@ -233,6 +233,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .chart-legend{display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:#888}
 .chart-legend span{display:flex;align-items:center;gap:4px}
 .chart-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* EDITOR EM LOTE */
+.batch-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:flex-end;justify-content:center}
+.batch-overlay.show{display:flex}
+.batch-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.batch-header{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:1px solid #eee;flex-shrink:0}
+.batch-title{flex:1}
+.batch-title .bt-name{font-size:16px;font-weight:600;color:#222}
+.batch-title .bt-sub{font-size:11px;color:#888;margin-top:1px}
+.batch-close{background:none;border:none;font-size:22px;cursor:pointer;color:#aaa;padding:4px}
+.batch-scroll{overflow-y:auto;padding:12px;flex:1}
+.batch-select-all{display:flex;gap:6px;margin-bottom:10px}
+.bsa-btn{flex:1;padding:8px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;font-size:12px;cursor:pointer;color:#555;transition:background .15s}
+.bsa-btn:hover{background:#eee}
+.bstk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.bstk{border:2px solid #e0e0e0;border-radius:10px;padding:8px 4px 6px;text-align:center;cursor:pointer;transition:all .15s;background:#fafafa;user-select:none}
+.bstk:active{transform:scale(.92)}
+.bstk.sel{background:#0d2b5e;border-color:#0d2b5e;color:#fff}
+.bstk.was-owned{border-color:#1a7a3c}
+.bstk-num{font-size:13px;font-weight:700;line-height:1}
+.bstk-name{font-size:8px;margin-top:3px;line-height:1.2;opacity:.65;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+.batch-preview{margin:0 0 10px;padding:10px 12px;background:#f0f4ff;border-radius:10px;font-size:12px;color:#0d2b5e;line-height:1.6}
+.batch-footer{display:flex;gap:8px;padding:10px 12px 16px;border-top:1px solid #eee;flex-shrink:0}
+.bfoot-btn{flex:1;padding:13px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:opacity .2s}
+.bfoot-btn:active{opacity:.8}
+.bfoot-confirm{background:#1a7a3c;color:#fff}
+.bfoot-cancel{background:#f0f2f5;color:#666;border:1px solid #ddd!important}
 </style>
 </head>
 <body>
@@ -466,6 +493,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- EDITOR EM LOTE -->
+<div class="batch-overlay" id="batchOverlay" onclick="if(event.target===this)closeBatch()">
+  <div class="batch-box">
+    <div class="batch-header">
+      <div id="batchFlag"></div>
+      <div class="batch-title">
+        <div class="bt-name" id="batchTeamName">—</div>
+        <div class="bt-sub" id="batchTeamSub">Toque nas figurinhas que você possui</div>
+      </div>
+      <button class="batch-close" onclick="closeBatch()">✕</button>
+    </div>
+    <div class="batch-scroll">
+      <div class="batch-select-all">
+        <button class="bsa-btn" onclick="batchSelectAll()">✓ Marcar todas</button>
+        <button class="bsa-btn" onclick="batchClearAll()">✕ Desmarcar todas</button>
+      </div>
+      <div class="bstk-grid" id="batchGrid"></div>
+      <div class="batch-preview" id="batchPreview">Nenhuma alteração ainda.</div>
+    </div>
+    <div class="batch-footer">
+      <button class="bfoot-btn bfoot-confirm" onclick="confirmBatch()">✓ Confirmar e salvar</button>
+      <button class="bfoot-btn bfoot-cancel" onclick="closeBatch()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL API KEY -->
 <div class="modal-overlay" id="apiKeyModal">
   <div class="modal-box">
@@ -668,130 +721,194 @@ window.scheduleSave = () => {
 <!-- APP LOGIC -->
 <script>
 const FLAGS={
-  "Brasil":"https://flagcdn.com/w40/br.png","Argentina":"https://flagcdn.com/w40/ar.png",
-  "França":"https://flagcdn.com/w40/fr.png","Alemanha":"https://flagcdn.com/w40/de.png",
-  "Espanha":"https://flagcdn.com/w40/es.png","Inglaterra":"https://flagcdn.com/w40/gb-eng.png",
-  "Portugal":"https://flagcdn.com/w40/pt.png","EUA":"https://flagcdn.com/w40/us.png",
-  "México":"https://flagcdn.com/w40/mx.png","Canadá":"https://flagcdn.com/w40/ca.png",
-  "Holanda":"https://flagcdn.com/w40/nl.png","Croácia":"https://flagcdn.com/w40/hr.png",
-  "Bélgica":"https://flagcdn.com/w40/be.png","Uruguai":"https://flagcdn.com/w40/uy.png",
-  "Colômbia":"https://flagcdn.com/w40/co.png","Marrocos":"https://flagcdn.com/w40/ma.png",
-  "Japão":"https://flagcdn.com/w40/jp.png","Senegal":"https://flagcdn.com/w40/sn.png",
-  "Coreia do Sul":"https://flagcdn.com/w40/kr.png","Austrália":"https://flagcdn.com/w40/au.png",
-  "Suíça":"https://flagcdn.com/w40/ch.png","Polônia":"https://flagcdn.com/w40/pl.png",
-  "Turquia":"https://flagcdn.com/w40/tr.png","Ucrânia":"https://flagcdn.com/w40/ua.png",
-  "Arábia Saudita":"https://flagcdn.com/w40/sa.png","Costa Rica":"https://flagcdn.com/w40/cr.png",
-  "Equador":"https://flagcdn.com/w40/ec.png","Peru":"https://flagcdn.com/w40/pe.png",
-  "Venezuela":"https://flagcdn.com/w40/ve.png","Bolívia":"https://flagcdn.com/w40/bo.png",
-  "Panamá":"https://flagcdn.com/w40/pa.png","Honduras":"https://flagcdn.com/w40/hn.png",
-  "Guiné":"https://flagcdn.com/w40/gn.png","Nigéria":"https://flagcdn.com/w40/ng.png",
-  "Ghana":"https://flagcdn.com/w40/gh.png","Jamaica":"https://flagcdn.com/w40/jm.png",
-  "Mali":"https://flagcdn.com/w40/ml.png","Camarões":"https://flagcdn.com/w40/cm.png",
-  "Argélia":"https://flagcdn.com/w40/dz.png","Tanzânia":"https://flagcdn.com/w40/tz.png",
-  "Irã":"https://flagcdn.com/w40/ir.png","Iraque":"https://flagcdn.com/w40/iq.png",
-  "Afeganistão":"https://flagcdn.com/w40/af.png","China":"https://flagcdn.com/w40/cn.png",
-  "Indonésia":"https://flagcdn.com/w40/id.png","Nova Zelândia":"https://flagcdn.com/w40/nz.png",
-  "Rep. Tcheca":"https://flagcdn.com/w40/cz.png","Eslovênia":"https://flagcdn.com/w40/si.png",
+  // Grupo A
+  "México":"https://flagcdn.com/w40/mx.png",
+  "Coreia do Sul":"https://flagcdn.com/w40/kr.png",
+  "África do Sul":"https://flagcdn.com/w40/za.png",
+  "Rep. Tcheca":"https://flagcdn.com/w40/cz.png",
+  // Grupo B
+  "Canadá":"https://flagcdn.com/w40/ca.png",
+  "Suíça":"https://flagcdn.com/w40/ch.png",
+  "Qatar":"https://flagcdn.com/w40/qa.png",
+  "Bósnia-Herzegovina":"https://flagcdn.com/w40/ba.png",
+  // Grupo C
+  "Brasil":"https://flagcdn.com/w40/br.png",
+  "Marrocos":"https://flagcdn.com/w40/ma.png",
+  "Haiti":"https://flagcdn.com/w40/ht.png",
+  "Escócia":"https://flagcdn.com/w40/gb-sct.png",
+  // Grupo D
+  "EUA":"https://flagcdn.com/w40/us.png",
+  "Paraguai":"https://flagcdn.com/w40/py.png",
+  "Austrália":"https://flagcdn.com/w40/au.png",
+  "Turquia":"https://flagcdn.com/w40/tr.png",
+  // Grupo E
+  "Alemanha":"https://flagcdn.com/w40/de.png",
+  "Curaçao":"https://flagcdn.com/w40/cw.png",
+  "Costa do Marfim":"https://flagcdn.com/w40/ci.png",
+  "Equador":"https://flagcdn.com/w40/ec.png",
+  // Grupo F
+  "Holanda":"https://flagcdn.com/w40/nl.png",
+  "Japão":"https://flagcdn.com/w40/jp.png",
+  "Tunísia":"https://flagcdn.com/w40/tn.png",
+  "Suécia":"https://flagcdn.com/w40/se.png",
+  // Grupo G
+  "Bélgica":"https://flagcdn.com/w40/be.png",
+  "Egito":"https://flagcdn.com/w40/eg.png",
+  "Irã":"https://flagcdn.com/w40/ir.png",
+  "Nova Zelândia":"https://flagcdn.com/w40/nz.png",
+  // Grupo H
+  "Espanha":"https://flagcdn.com/w40/es.png",
+  "Cabo Verde":"https://flagcdn.com/w40/cv.png",
+  "Arábia Saudita":"https://flagcdn.com/w40/sa.png",
+  "Uruguai":"https://flagcdn.com/w40/uy.png",
+  // Grupo I
+  "França":"https://flagcdn.com/w40/fr.png",
+  "Senegal":"https://flagcdn.com/w40/sn.png",
+  "Noruega":"https://flagcdn.com/w40/no.png",
+  "Iraque":"https://flagcdn.com/w40/iq.png",
+  // Grupo J
+  "Argentina":"https://flagcdn.com/w40/ar.png",
+  "Argélia":"https://flagcdn.com/w40/dz.png",
+  "Áustria":"https://flagcdn.com/w40/at.png",
+  "Jordânia":"https://flagcdn.com/w40/jo.png",
+  // Grupo K
+  "Portugal":"https://flagcdn.com/w40/pt.png",
+  "Uzbequistão":"https://flagcdn.com/w40/uz.png",
+  "Colômbia":"https://flagcdn.com/w40/co.png",
+  "Congo RD":"https://flagcdn.com/w40/cd.png",
+  // Grupo L
+  "Inglaterra":"https://flagcdn.com/w40/gb-eng.png",
+  "Croácia":"https://flagcdn.com/w40/hr.png",
+  "Gana":"https://flagcdn.com/w40/gh.png",
+  "Panamá":"https://flagcdn.com/w40/pa.png",
 };
 
+const TROPHY_SVG=`<svg viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h16v10c0 5.5-3.6 8-8 8s-8-2.5-8-8V2z" fill="#f0c040"/><path d="M4 4H2a2 2 0 000 4h2" fill="none" stroke="#f0c040" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4h2a2 2 0 010 4h-2" fill="none" stroke="#f0c040" stroke-width="1.8" stroke-linecap="round"/><rect x="10" y="20" width="4" height="5" fill="#f0c040"/><rect x="6" y="25" width="12" height="3" rx="1" fill="#f0c040"/></svg>`;
+
 function flagImg(name,w,h){
+  if(name==='FWC') return `<span style="display:inline-block;width:${w}px;height:${h}px">${TROPHY_SVG}</span>`;
   const src=FLAGS[name];
-  if(!src) return `<span style="display:inline-block;width:${w}px;line-height:1">✨</span>`;
+  if(!src) return `<span style="display:inline-block;width:${w}px;line-height:1">🏳</span>`;
   return `<img src="${src}" alt="${name}" width="${w}" height="${h}" style="border-radius:2px;border:1px solid #eee;object-fit:cover;display:block" loading="lazy">`;
 }
 
+// Estrutura real do álbum Panini FIFA World Cup 2026
+// FWC (1-20) = páginas de abertura do álbum
+// 48 seleções × 20 figurinhas = 960, total 980
 const TEAMS=[
-  {name:"Brasil",continent:"América do Sul",start:1,group:"G"},
-  {name:"Argentina",continent:"América do Sul",start:21,group:"D"},
-  {name:"França",continent:"Europa",start:41,group:"E"},
-  {name:"Alemanha",continent:"Europa",start:61,group:"F"},
-  {name:"Espanha",continent:"Europa",start:81,group:"B"},
-  {name:"Inglaterra",continent:"Europa",start:101,group:"A"},
-  {name:"Portugal",continent:"Europa",start:121,group:"E"},
-  {name:"EUA",continent:"América do Norte",start:141,group:"A"},
-  {name:"México",continent:"América do Norte",start:161,group:"B"},
-  {name:"Canadá",continent:"América do Norte",start:181,group:"C"},
-  {name:"Holanda",continent:"Europa",start:201,group:"C"},
-  {name:"Croácia",continent:"Europa",start:221,group:"F"},
-  {name:"Bélgica",continent:"Europa",start:241,group:"D"},
-  {name:"Uruguai",continent:"América do Sul",start:261,group:"H"},
-  {name:"Colômbia",continent:"América do Sul",start:281,group:"G"},
-  {name:"Marrocos",continent:"África",start:301,group:"H"},
-  {name:"Japão",continent:"Ásia",start:321,group:"C"},
-  {name:"Senegal",continent:"África",start:341,group:"L"},
-  {name:"Coreia do Sul",continent:"Ásia",start:361,group:"D"},
-  {name:"Austrália",continent:"Oceania",start:381,group:"K"},
-  {name:"Suíça",continent:"Europa",start:401,group:"I"},
-  {name:"Polônia",continent:"Europa",start:421,group:"J"},
-  {name:"Turquia",continent:"Europa",start:441,group:"B"},
-  {name:"Ucrânia",continent:"Europa",start:461,group:"I"},
-  {name:"Arábia Saudita",continent:"Ásia",start:481,group:"F"},
-  {name:"Costa Rica",continent:"América Central",start:501,group:"A"},
-  {name:"Equador",continent:"América do Sul",start:521,group:"L"},
-  {name:"Peru",continent:"América do Sul",start:541,group:"K"},
-  {name:"Venezuela",continent:"América do Sul",start:561,group:"H"},
-  {name:"Bolívia",continent:"América do Sul",start:581,group:"J"},
-  {name:"Panamá",continent:"América Central",start:601,group:"I"},
-  {name:"Honduras",continent:"América Central",start:621,group:"G"},
-  {name:"Guiné",continent:"África",start:641,group:"L"},
-  {name:"Nigéria",continent:"África",start:661,group:"J"},
-  {name:"Ghana",continent:"África",start:681,group:"K"},
-  {name:"Jamaica",continent:"América Central",start:701,group:"C"},
-  {name:"Mali",continent:"África",start:721,group:"I"},
-  {name:"Camarões",continent:"África",start:741,group:"E"},
-  {name:"Argélia",continent:"África",start:761,group:"F"},
-  {name:"Tanzânia",continent:"África",start:781,group:"B"},
-  {name:"Irã",continent:"Ásia",start:801,group:"G"},
-  {name:"Iraque",continent:"Ásia",start:821,group:"H"},
-  {name:"Afeganistão",continent:"Ásia",start:841,group:"D"},
-  {name:"China",continent:"Ásia",start:861,group:"E"},
-  {name:"Indonésia",continent:"Ásia",start:881,group:"K"},
-  {name:"Nova Zelândia",continent:"Oceania",start:901,group:"L"},
-  {name:"Rep. Tcheca",continent:"Europa",start:921,group:"J"},
-  {name:"Eslovênia",continent:"Europa",start:941,group:"A"},
-  {name:"Especiais",continent:"—",start:961,group:"—"},
+  {name:"FWC",     code:"FWC",continent:"—",              start:1,  group:"—"},
+  // Grupo A
+  {name:"México",  code:"MEX",continent:"América do Norte",start:21, group:"A"},
+  {name:"Coreia do Sul",code:"KOR",continent:"Ásia",       start:41, group:"A"},
+  {name:"África do Sul",code:"RSA",continent:"África",     start:61, group:"A"},
+  {name:"Rep. Tcheca",  code:"CZE",continent:"Europa",     start:81, group:"A"},
+  // Grupo B
+  {name:"Canadá",  code:"CAN",continent:"América do Norte",start:101,group:"B"},
+  {name:"Suíça",   code:"SUI",continent:"Europa",          start:121,group:"B"},
+  {name:"Qatar",   code:"QAT",continent:"Ásia",            start:141,group:"B"},
+  {name:"Bósnia-Herzegovina",code:"BIH",continent:"Europa",start:161,group:"B"},
+  // Grupo C
+  {name:"Brasil",  code:"BRA",continent:"América do Sul",  start:181,group:"C"},
+  {name:"Marrocos",code:"MAR",continent:"África",          start:201,group:"C"},
+  {name:"Haiti",   code:"HAI",continent:"América Central", start:221,group:"C"},
+  {name:"Escócia", code:"SCO",continent:"Europa",          start:241,group:"C"},
+  // Grupo D
+  {name:"EUA",     code:"USA",continent:"América do Norte",start:261,group:"D"},
+  {name:"Paraguai",code:"PAR",continent:"América do Sul",  start:281,group:"D"},
+  {name:"Austrália",code:"AUS",continent:"Oceania",        start:301,group:"D"},
+  {name:"Turquia", code:"TUR",continent:"Europa",          start:321,group:"D"},
+  // Grupo E
+  {name:"Alemanha",code:"GER",continent:"Europa",          start:341,group:"E"},
+  {name:"Curaçao", code:"CUW",continent:"América do Norte",start:361,group:"E"},
+  {name:"Costa do Marfim",code:"CIV",continent:"África",   start:381,group:"E"},
+  {name:"Equador", code:"ECU",continent:"América do Sul",  start:401,group:"E"},
+  // Grupo F
+  {name:"Holanda", code:"NED",continent:"Europa",          start:421,group:"F"},
+  {name:"Japão",   code:"JPN",continent:"Ásia",            start:441,group:"F"},
+  {name:"Tunísia", code:"TUN",continent:"África",          start:461,group:"F"},
+  {name:"Suécia",  code:"SWE",continent:"Europa",          start:481,group:"F"},
+  // Grupo G
+  {name:"Bélgica", code:"BEL",continent:"Europa",          start:501,group:"G"},
+  {name:"Egito",   code:"EGY",continent:"África",          start:521,group:"G"},
+  {name:"Irã",     code:"IRN",continent:"Ásia",            start:541,group:"G"},
+  {name:"Nova Zelândia",code:"NZL",continent:"Oceania",    start:561,group:"G"},
+  // Grupo H
+  {name:"Espanha", code:"ESP",continent:"Europa",          start:581,group:"H"},
+  {name:"Cabo Verde",code:"CPV",continent:"África",        start:601,group:"H"},
+  {name:"Arábia Saudita",code:"KSA",continent:"Ásia",      start:621,group:"H"},
+  {name:"Uruguai", code:"URU",continent:"América do Sul",  start:641,group:"H"},
+  // Grupo I
+  {name:"França",  code:"FRA",continent:"Europa",          start:661,group:"I"},
+  {name:"Senegal", code:"SEN",continent:"África",          start:681,group:"I"},
+  {name:"Noruega", code:"NOR",continent:"Europa",          start:701,group:"I"},
+  {name:"Iraque",  code:"IRQ",continent:"Ásia",            start:721,group:"I"},
+  // Grupo J
+  {name:"Argentina",code:"ARG",continent:"América do Sul", start:741,group:"J"},
+  {name:"Argélia", code:"ALG",continent:"África",          start:761,group:"J"},
+  {name:"Áustria", code:"AUT",continent:"Europa",          start:781,group:"J"},
+  {name:"Jordânia",code:"JOR",continent:"Ásia",            start:801,group:"J"},
+  // Grupo K
+  {name:"Portugal",code:"POR",continent:"Europa",          start:821,group:"K"},
+  {name:"Uzbequistão",code:"UZB",continent:"Ásia",         start:841,group:"K"},
+  {name:"Colômbia",code:"COL",continent:"América do Sul",  start:861,group:"K"},
+  {name:"Congo RD",code:"COD",continent:"África",          start:881,group:"K"},
+  // Grupo L
+  {name:"Inglaterra",code:"ENG",continent:"Europa",        start:901,group:"L"},
+  {name:"Croácia", code:"CRO",continent:"Europa",          start:921,group:"L"},
+  {name:"Gana",    code:"GHA",continent:"África",          start:941,group:"L"},
+  {name:"Panamá",  code:"PAN",continent:"América do Norte",start:961,group:"L"},
 ];
 
 const GROUPS={
-  A:["Inglaterra","EUA","Costa Rica","Eslovênia"],
-  B:["Espanha","México","Turquia","Tanzânia"],
-  C:["Canadá","Holanda","Japão","Jamaica"],
-  D:["Argentina","Bélgica","Coreia do Sul","Afeganistão"],
-  E:["França","Portugal","Camarões","China"],
-  F:["Alemanha","Croácia","Arábia Saudita","Argélia"],
-  G:["Brasil","Colômbia","Honduras","Irã"],
-  H:["Uruguai","Marrocos","Venezuela","Iraque"],
-  I:["Suíça","Ucrânia","Panamá","Mali"],
-  J:["Polônia","Nigéria","Bolívia","Rep. Tcheca"],
-  K:["Austrália","Peru","Ghana","Indonésia"],
-  L:["Senegal","Equador","Guiné","Nova Zelândia"],
+  A:["México","Coreia do Sul","África do Sul","Rep. Tcheca"],
+  B:["Canadá","Suíça","Qatar","Bósnia-Herzegovina"],
+  C:["Brasil","Marrocos","Haiti","Escócia"],
+  D:["EUA","Paraguai","Austrália","Turquia"],
+  E:["Alemanha","Curaçao","Costa do Marfim","Equador"],
+  F:["Holanda","Japão","Tunísia","Suécia"],
+  G:["Bélgica","Egito","Irã","Nova Zelândia"],
+  H:["Espanha","Cabo Verde","Arábia Saudita","Uruguai"],
+  I:["França","Senegal","Noruega","Iraque"],
+  J:["Argentina","Argélia","Áustria","Jordânia"],
+  K:["Portugal","Uzbequistão","Colômbia","Congo RD"],
+  L:["Inglaterra","Croácia","Gana","Panamá"],
 };
 
 const PLAYER_NAMES=["Escudo","Goleiro","Goleiro Res.","Def. 1","Def. 2","Def. 3","Def. 4","Meia 1","Meia 2","Meia 3","Meia 4","Atacante 1","Foto Time","Atacante 2","Atacante 3","Atacante 4","Atacante 5","Meia 5","Def. 5","Capitão"];
+const FWC_NAMES=["Emblema Oficial","Emblema Foil","Mascote Oficial","Lema Oficial","Bola Oficial","Sede — Canadá","Sede — México","Sede — EUA","História 1930","História 1934","História 1938","História 1950","História 1954","História 1958","História 1962","História 1966","História 1970","História 1974","História 1978","História 1982"];
 
 let col={};
 let camStream=null,scanning=false,activeFilter='all',scanMode='back',cChart=null,groupsExpanded=false;
 let autoScanTimer=null,pendingSticker=null;
 let ocrWorker=null;
 
-// Mapeamento do prefixo Panini → nome do time no app
+// Prefixo Panini → nome do time conforme estrutura real do álbum
 const CODE_MAP={
-  'FWC':'Especiais',
-  'BRA':'Brasil','ARG':'Argentina','FRA':'França','GER':'Alemanha',
-  'ESP':'Espanha','ENG':'Inglaterra','POR':'Portugal','USA':'EUA',
-  'MEX':'México','CAN':'Canadá','NED':'Holanda','CRO':'Croácia',
-  'BEL':'Bélgica','URU':'Uruguai','COL':'Colômbia','MAR':'Marrocos',
-  'JPN':'Japão','SEN':'Senegal','KOR':'Coreia do Sul','AUS':'Austrália',
-  'SUI':'Suíça','POL':'Polônia','TUR':'Turquia','UKR':'Ucrânia',
-  'KSA':'Arábia Saudita','CRC':'Costa Rica','ECU':'Equador',
-  'PER':'Peru','VEN':'Venezuela','BOL':'Bolívia','PAN':'Panamá',
-  'HON':'Honduras','GUI':'Guiné','NGA':'Nigéria','GHA':'Ghana',
-  'JAM':'Jamaica','MLI':'Mali','CMR':'Camarões','ALG':'Argélia',
-  'TAN':'Tanzânia','IRN':'Irã','IRQ':'Iraque','AFG':'Afeganistão',
-  'CHN':'China','IDN':'Indonésia','NZL':'Nova Zelândia',
-  'CZE':'Rep. Tcheca','SVN':'Eslovênia',
-  // Times adicionais que podem aparecer no álbum real
-  'HAI':null,'PAN':null,'PAR':null,'CHI':null,'BOT':null,
+  'FWC':'FWC',
+  // Grupo A
+  'MEX':'México','KOR':'Coreia do Sul','RSA':'África do Sul','CZE':'Rep. Tcheca',
+  // Grupo B
+  'CAN':'Canadá','SUI':'Suíça','QAT':'Qatar','BIH':'Bósnia-Herzegovina',
+  // Grupo C
+  'BRA':'Brasil','MAR':'Marrocos','HAI':'Haiti','SCO':'Escócia',
+  // Grupo D
+  'USA':'EUA','PAR':'Paraguai','AUS':'Austrália','TUR':'Turquia',
+  // Grupo E
+  'GER':'Alemanha','CUW':'Curaçao','CIV':'Costa do Marfim','ECU':'Equador',
+  // Grupo F
+  'NED':'Holanda','JPN':'Japão','TUN':'Tunísia','SWE':'Suécia',
+  // Grupo G
+  'BEL':'Bélgica','EGY':'Egito','IRN':'Irã','NZL':'Nova Zelândia',
+  // Grupo H
+  'ESP':'Espanha','CPV':'Cabo Verde','KSA':'Arábia Saudita','URU':'Uruguai',
+  // Grupo I
+  'FRA':'França','SEN':'Senegal','NOR':'Noruega','IRQ':'Iraque',
+  // Grupo J
+  'ARG':'Argentina','ALG':'Argélia','AUT':'Áustria','JOR':'Jordânia',
+  // Grupo K
+  'POR':'Portugal','UZB':'Uzbequistão','COL':'Colômbia','COD':'Congo RD',
+  // Grupo L
+  'ENG':'Inglaterra','CRO':'Croácia','GHA':'Gana','PAN':'Panamá',
 };
 
 function codeToNumber(prefix, pos){
@@ -851,10 +968,14 @@ async function runOCROnFrame(){
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
 function teamOwned(t){let c=0;for(let i=0;i<20;i++){if(col[t.start+i])c++;}return c;}
 function getInfo(n){
-  let t=TEAMS[TEAMS.length-1];
-  for(let i=TEAMS.length-2;i>=0;i--){if(n>=TEAMS[i].start){t=TEAMS[i];break;}}
+  // Itera do início ao fim mantendo o time com maior start ≤ n (correção do bug)
+  let t=TEAMS[0];
+  for(let i=1;i<TEAMS.length;i++){
+    if(TEAMS[i].start<=n) t=TEAMS[i]; else break;
+  }
   const pos=n-t.start;
-  return{name:pos<PLAYER_NAMES.length?PLAYER_NAMES[pos]:'Jogador '+(pos+1),team:t.name};
+  const names=t.name==='FWC'?FWC_NAMES:PLAYER_NAMES;
+  return{name:pos<names.length?names[pos]:'Figurinha '+(pos+1),team:t.name};
 }
 
 function updateAll(){
@@ -876,7 +997,7 @@ function updateAll(){
 
 function renderRanking(){
   const el=document.getElementById('rankingList');if(!el)return;
-  const ranked=TEAMS.filter(t=>t.name!=='Especiais').map(t=>({...t,c:teamOwned(t)})).sort((a,b)=>b.c-a.c).slice(0,10);
+  const ranked=TEAMS.filter(t=>t.name!=='FWC').map(t=>({...t,c:teamOwned(t)})).sort((a,b)=>b.c-a.c).slice(0,10);
   el.innerHTML=ranked.map((t,i)=>`
     <div class="pbar-row">
       <span class="pbar-rank">${i+1}</span>
@@ -914,7 +1035,7 @@ function renderContChart(){
   const totals={},ownedC={};
   conts.forEach(c=>{totals[c]=0;ownedC[c]=0;});
   TEAMS.forEach(t=>{
-    if(t.name==='Especiais')return;
+    if(t.name==='FWC')return;
     totals[t.continent]=(totals[t.continent]||0)+20;
     ownedC[t.continent]=(ownedC[t.continent]||0)+teamOwned(t);
   });
@@ -935,7 +1056,7 @@ function renderContChart(){
 
 function renderSuggested(){
   const el=document.getElementById('suggestedList');if(!el)return;
-  const missing=[];for(let n=1;n<=960;n++){if(!col[n])missing.push(n);}
+  const missing=[];for(let n=1;n<=980;n++){if(!col[n])missing.push(n);}
   if(missing.length===0){el.innerHTML='<div class="empty"><span class="empty-icon">🏆</span>Álbum completo! Parabéns!</div>';return;}
   el.innerHTML=missing.slice(0,5).map(n=>{
     const info=getInfo(n);
@@ -978,7 +1099,8 @@ function renderGrid(){
       cells+=`<div class="sc2 ${cnt===0?'':cnt>1?'duplicate':'owned'}" onclick="toggleS(${n})">${cnt>1?`<div class="db">${cnt}</div>`:''}<div>${n}</div></div>`;
     }
     if(!cells)continue;
-    html+=`<div class="tsec"><div class="thead">${flagImg(t.name,24,16)}<span class="tn">${t.name}</span><span class="tc">${teamOwned(t)}/20</span></div><div class="sgrid">${cells}</div></div>`;
+    const grpLabel=t.group&&t.group!=='—'?`<span style="font-size:10px;color:#999;margin-left:4px">Gr.${t.group}</span>`:'';
+    html+=`<div class="tsec"><div class="thead" onclick="openBatch('${t.name}')" style="cursor:pointer">${flagImg(t.name,24,16)}<span class="tn">${t.name}</span>${grpLabel}<span class="tc" style="margin-left:auto">${teamOwned(t)}/20 <span style="color:#185FA5;font-size:11px">✏</span></span></div><div class="sgrid">${cells}</div></div>`;
   }
   document.getElementById('colGrid').innerHTML=html||'<div class="empty"><span class="empty-icon">🔍</span>Nenhuma figurinha encontrada</div>';
 }
@@ -1223,6 +1345,89 @@ function discardSticker(){
   document.getElementById('confirmPanel').classList.remove('show');
   setSS('Descartada. Buscando próxima...','');
   if(camStream)startAutoScan();
+}
+
+// ── Editor em Lote ──
+let batchTeam=null, batchState={};
+
+function openBatch(teamName){
+  const team=TEAMS.find(t=>t.name===teamName);
+  if(!team)return;
+  batchTeam=team;
+  batchState={};
+  for(let i=0;i<20;i++){
+    const n=team.start+i;
+    if(n>980)break;
+    batchState[n]=!!col[n];
+  }
+  // Header
+  document.getElementById('batchFlag').innerHTML=flagImg(team.name,28,19);
+  document.getElementById('batchTeamName').textContent=team.name==='FWC'?'🏆 Páginas FWC':team.name;
+  document.getElementById('batchTeamSub').textContent=
+    team.group&&team.group!=='—'?`Grupo ${team.group} — selecione as figurinhas que você tem`:'Selecione as figurinhas que você tem';
+  renderBatchGrid();
+  document.getElementById('batchOverlay').classList.add('show');
+}
+
+function renderBatchGrid(){
+  if(!batchTeam)return;
+  const grid=document.getElementById('batchGrid');
+  const names=batchTeam.name==='FWC'?FWC_NAMES:PLAYER_NAMES;
+  grid.innerHTML='';
+  for(let i=0;i<20;i++){
+    const n=batchTeam.start+i;
+    if(n>980)break;
+    const name=i<names.length?names[i]:'Fig. '+(i+1);
+    const sel=batchState[n];
+    const wasOwned=!!col[n];
+    const div=document.createElement('div');
+    div.className='bstk'+(sel?' sel':'')+(wasOwned&&!sel?' was-owned':'');
+    div.innerHTML=`<div class="bstk-num">${batchTeam.name==='FWC'?'F'+(i+1):n}</div><div class="bstk-name">${name}</div>`;
+    div.onclick=()=>{batchState[n]=!batchState[n];renderBatchGrid();};
+    grid.appendChild(div);
+  }
+  renderBatchPreview();
+}
+
+function renderBatchPreview(){
+  const adding=[],removing=[];
+  for(const[k,sel]of Object.entries(batchState)){
+    const n=parseInt(k);
+    if(sel&&!col[n])adding.push(n);
+    if(!sel&&col[n])removing.push(n);
+  }
+  let html='';
+  if(adding.length)html+=`<b>+ ${adding.length} nova(s):</b> ${adding.map(n=>batchTeam.name==='FWC'?'F'+(n-batchTeam.start+1):n).join(', ')}<br>`;
+  if(removing.length)html+=`<b>− ${removing.length} a remover:</b> ${removing.map(n=>batchTeam.name==='FWC'?'F'+(n-batchTeam.start+1):n).join(', ')}`;
+  if(!adding.length&&!removing.length)html='Nenhuma alteração.';
+  document.getElementById('batchPreview').innerHTML=html;
+}
+
+function batchSelectAll(){
+  for(const k of Object.keys(batchState))batchState[parseInt(k)]=true;
+  renderBatchGrid();
+}
+function batchClearAll(){
+  for(const k of Object.keys(batchState))batchState[parseInt(k)]=false;
+  renderBatchGrid();
+}
+
+function confirmBatch(){
+  if(!batchTeam)return;
+  for(const[k,sel]of Object.entries(batchState)){
+    const n=parseInt(k);
+    if(sel){if(!col[n])col[n]=1;}
+    else{delete col[n];}
+  }
+  updateAll();
+  if(window.scheduleSave)window.scheduleSave();
+  closeBatch();
+  renderGrid();
+}
+
+function closeBatch(){
+  document.getElementById('batchOverlay').classList.remove('show');
+  batchTeam=null;batchState={};
 }
 
 const now=new Date();
