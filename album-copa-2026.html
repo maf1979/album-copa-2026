@@ -931,33 +931,87 @@ function codeToNumber(prefix, pos){
 
 async function initOCR(){
   if(ocrWorker) return ocrWorker;
-  setSS('Inicializando OCR (primeira vez ~10s)…','proc');
+  setSS('Inicializando OCR…','');
   ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
   await ocrWorker.setParameters({
     tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-    tessedit_pageseg_mode:'11', // sparse text: acha texto em qualquer posição
-    tessedit_do_invert:'0',     // NÃO re-inverter — já invertemos no canvas
+    tessedit_pageseg_mode:'7', // linha única — badge é sempre 1 linha de texto
   });
   return ocrWorker;
 }
 
-// Cria canvas processado para OCR
-function buildOCRCanvas(src,cx,cy,cw,ch){
-  // Escala para garantir saída entre 700-1000px de largura (texto legível)
-  const scaleF=Math.min(Math.max(750/cw,0.5),3.0);
-  const outW=Math.round(cw*scaleF);
-  const outH=Math.round(ch*scaleF);
+// Localiza regiões escuras (badges) no topo-direito do frame por análise de pixels
+function findBadgesInFrame(canvas){
+  const w=canvas.width,h=canvas.height;
+  const ctx=canvas.getContext('2d');
+  // Busca: direita 65%, topo 50%
+  const x0=Math.floor(w*0.30),y0=Math.floor(h*0.04);
+  const sw=w-x0,sh=Math.floor(h*0.46);
+  const step=4; // amostra a cada 4px (rápido)
+  const raw=ctx.getImageData(x0,y0,sw,sh).data;
+  const sW=Math.floor(sw/step),sH=Math.floor(sh/step);
+
+  // Mapa de brilho
+  const br=new Float32Array(sW*sH);
+  for(let sy=0;sy<sH;sy++) for(let sx=0;sx<sW;sx++){
+    const i=((sy*step)*sw+(sx*step))*4;
+    br[sy*sW+sx]=(raw[i]*77+raw[i+1]*150+raw[i+2]*29)>>8;
+  }
+  // Suavização 3×3
+  const sm=new Float32Array(sW*sH);
+  for(let sy=1;sy<sH-1;sy++) for(let sx=1;sx<sW-1;sx++){
+    let s=0;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) s+=br[(sy+dy)*sW+(sx+dx)];
+    sm[sy*sW+sx]=s/9;
+  }
+
+  const badges=[],used=new Uint8Array(sW*sH);
+  for(let iter=0;iter<5;iter++){
+    // Ponto mais escuro não usado
+    let minV=255,minI=-1;
+    for(let i=0;i<sm.length;i++) if(!used[i]&&sm[i]<minV){minV=sm[i];minI=i;}
+    if(minV>90||minI<0) break;
+
+    const mx=minI%sW,my=Math.floor(minI/sW);
+    const thr=minV+35;
+    // Expande para achar fronteira da região escura
+    let x1=mx,x2=mx,y1=my,y2=my;
+    while(x1>0&&sm[my*sW+x1-1]<thr) x1--;
+    while(x2<sW-1&&sm[my*sW+x2+1]<thr) x2++;
+    while(y1>0&&sm[(y1-1)*sW+mx]<thr) y1--;
+    while(y2<sH-1&&sm[(y2+1)*sW+mx]<thr) y2++;
+    // Marca como usado
+    for(let sy=Math.max(0,y1-3);sy<=Math.min(sH-1,y2+3);sy++)
+      for(let sx=Math.max(0,x1-3);sx<=Math.min(sW-1,x2+3);sx++) used[sy*sW+sx]=1;
+
+    const rW=(x2-x1+1)*step,rH=(y2-y1+1)*step;
+    // Filtra: badge tem aspecto horizontal, não muito grande nem muito pequeno
+    if(rW<20||rH<6||rW>w*0.5||rH>h*0.2) continue;
+
+    const pad=step*6;
+    badges.push({
+      x:Math.max(0,x0+x1*step-pad),
+      y:Math.max(0,y0+y1*step-pad),
+      w:Math.min(w,(x2-x1+2)*step+pad*2),
+      h:Math.min(h,(y2-y1+2)*step+pad*2),
+    });
+  }
+  return badges;
+}
+
+// Extrai região em alta resolução e inverte para OCR
+function cropForOCR(canvas,cx,cy,cw,ch){
+  const scale=Math.max(2,Math.round(300/Math.max(cw,1))); // ~300px de largura mínima
   const c=document.createElement('canvas');
-  c.width=outW; c.height=outH;
+  c.width=cw*scale; c.height=ch*scale;
   const ctx=c.getContext('2d');
-  ctx.drawImage(src,cx,cy,cw,ch,0,0,outW,outH);
-  // Inversão binária: badge escuro→branco, texto branco→preto
-  const id=ctx.getImageData(0,0,outW,outH);
+  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,c.width,c.height);
+  // Inverte: fundo escuro→branco, texto branco→preto
+  const id=ctx.getImageData(0,0,c.width,c.height);
   const d=id.data;
   for(let i=0;i<d.length;i+=4){
     const g=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
-    const v=g<130?255:0;
-    d[i]=d[i+1]=d[i+2]=v;
+    d[i]=d[i+1]=d[i+2]=g<128?255:0;
   }
   ctx.putImageData(id,0,0);
   return c;
@@ -965,45 +1019,52 @@ function buildOCRCanvas(src,cx,cy,cw,ch){
 
 function parseOCRText(text){
   const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  const seen=new Set();
-  return[...clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)].reduce((acc,m)=>{
-    if(!CODE_MAP.hasOwnProperty(m[1]))return acc;
+  console.log('[OCR]',clean);
+  const seen=new Set(),acc=[];
+  // Tentativa 1: padrão normal "HAI 1" ou "HAI1"
+  for(const m of clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)){
+    if(!CODE_MAP.hasOwnProperty(m[1])) continue;
     const raw=`${m[1]} ${m[2]}`;
     if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
-    return acc;
-  },[]);
+  }
+  // Tentativa 2 (fallback): busca direta sem espaços — trata erros de segmentação OCR
+  if(!acc.length){
+    const ns=clean.replace(/\s/g,'');
+    for(const code of Object.keys(CODE_MAP)){
+      const m=ns.match(new RegExp(code+'(\\d{1,2})'));
+      if(m){
+        const raw=`${code} ${m[1]}`;
+        if(!seen.has(raw)){seen.add(raw);acc.push({prefix:code,pos:parseInt(m[1]),raw});}
+      }
+    }
+  }
+  return acc;
 }
 
 async function runOCROnFrame(){
   const vid=document.getElementById('vEl');
+  if(!vid.videoWidth||!vid.videoHeight) return [];
   const canvas=document.getElementById('captureCanvas');
-  canvas.width=vid.videoWidth||640;
-  canvas.height=vid.videoHeight||480;
+  canvas.width=vid.videoWidth;
+  canvas.height=vid.videoHeight;
   canvas.getContext('2d').drawImage(vid,0,0);
 
-  const w=canvas.width, h=canvas.height;
+  // Localiza badges por análise de pixels (região escura no topo-direito)
+  const badges=findBadgesInFrame(canvas);
+  console.log('[OCR] badges encontrados:',badges.length,badges);
+  if(!badges.length) return [];
 
   const worker=await initOCR();
+  const seen=new Set(),results=[];
 
-  // Debug apenas no console (não ocupa espaço na tela)
-  // const dbgWrap=document.getElementById('ocrDebugWrap');
-  // if(dbgWrap)dbgWrap.style.display='block';
-
-  // Zona única: metade direita do frame, faixa superior
-  // Badge fica em 45-100% X, 8-42% Y para figurinha centralizada
-  const cx=Math.floor(w*0.45),cy=Math.floor(h*0.08);
-  const cw=Math.floor(w*0.55),ch=Math.floor(h*0.34);
-  const proc=buildOCRCanvas(canvas,cx,cy,cw,ch);
-
-  // Mostra prévia
-  const dbgCanvas=document.getElementById('ocrDebugCanvas');
-  if(dbgCanvas){dbgCanvas.width=proc.width;dbgCanvas.height=proc.height;dbgCanvas.getContext('2d').drawImage(proc,0,0);}
-
-  const {data:{text}}=await worker.recognize(proc);
-  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  console.log('[OCR raw]', clean); // diagnóstico apenas no console
-
-  return parseOCRText(text);
+  for(const badge of badges){
+    const proc=cropForOCR(canvas,badge.x,badge.y,badge.w,badge.h);
+    const {data:{text}}=await worker.recognize(proc);
+    for(const r of parseOCRText(text)){
+      if(!seen.has(r.raw)){seen.add(r.raw);results.push(r);}
+    }
+  }
+  return results;
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
