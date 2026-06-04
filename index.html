@@ -1093,39 +1093,66 @@ function parseOCRText(text){
 
 async function runOCROnFrame(){
   const vid=document.getElementById('vEl');
+  if(!vid.videoWidth||!vid.videoHeight) return [];
   const canvas=document.getElementById('captureCanvas');
-  canvas.width=vid.videoWidth||640;
-  canvas.height=vid.videoHeight||480;
+  canvas.width=vid.videoWidth;
+  canvas.height=vid.videoHeight;
   canvas.getContext('2d').drawImage(vid,0,0);
 
-  const w=canvas.width, h=canvas.height;
-
-  // Crop original do commit 8692816 — metade direita, faixa longa vertical
-  const cx=Math.floor(w*0.42), cy=Math.floor(h*0.04);
-  const cw=w-cx, ch=Math.floor(h*0.62);
-
-  // Scale 2× — mesma versão que lia o badge
-  const scale=2;
-  const proc=document.createElement('canvas');
-  proc.width=cw*scale; proc.height=ch*scale;
-  const ctx=proc.getContext('2d');
-  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
-
-  // Threshold original: cinza < 115 → branco (badge escuro); resto → preto
-  const imgData=ctx.getImageData(0,0,proc.width,proc.height);
-  const d=imgData.data;
-  for(let i=0;i<d.length;i+=4){
-    const g=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
-    const v=g<115?255:0;
-    d[i]=d[i+1]=d[i+2]=v;
+  // ── Estratégia 1: TextDetector API (Chrome nativo — melhor resultado) ─────
+  if('TextDetector' in window){
+    try{
+      const det=new TextDetector();
+      const texts=await det.detect(canvas);
+      console.log('[TextDetector]',texts.map(t=>t.rawValue));
+      const seen=new Set(),acc=[];
+      for(const t of texts){
+        const clean=t.rawValue.replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
+        // Testa o texto inteiro e substrings (ex: "FWC 4" pode vir junto com outros textos)
+        for(const m of clean.matchAll(/([A-Z]{2,4})\s*(\d{1,2})/g)){
+          if(!CODE_MAP.hasOwnProperty(m[1])) continue;
+          const raw=`${m[1]} ${m[2]}`;
+          if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
+        }
+      }
+      if(acc.length){console.log('[TextDetector] encontrou:',acc[0].raw);return acc.slice(0,1);}
+    }catch(e){console.log('[TextDetector] erro:',e.message);}
   }
-  ctx.putImageData(imgData,0,0);
 
-  const worker=await initOCR();
-  const {data:{text}}=await worker.recognize(proc);
-  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  console.log('[OCR raw]',clean);
-  return parseOCRText(text).slice(0,1); // apenas 1 resultado
+  // ── Estratégia 2: Tesseract + detecção de badge por brilho ──────────────
+  try{
+    const badges=findBadgesInFrame(canvas);
+    console.log('[Tesseract] badges detectados:',badges.length, badges[0]);
+    if(!badges.length) return [];
+    const b=badges[0];
+
+    // Extrai badge em alta resolução SEM inversão manual — Tesseract auto-detecta
+    const scale=Math.max(3,Math.round(350/Math.max(b.w,1)));
+    const proc=document.createElement('canvas');
+    proc.width=b.w*scale; proc.height=b.h*scale;
+    proc.getContext('2d').drawImage(canvas,b.x,b.y,b.w,b.h,0,0,proc.width,proc.height);
+
+    const worker=await initOCR();
+    const {data:{text}}=await worker.recognize(proc);
+    console.log('[Tesseract raw]',text.replace(/\n/g,' ').trim());
+    const r=parseOCRText(text);
+    if(r.length) return r.slice(0,1);
+
+    // Tentativa com imagem invertida (texto branco em fundo escuro → inverte)
+    const ctx2=proc.getContext('2d');
+    const id=ctx2.getImageData(0,0,proc.width,proc.height);
+    for(let i=0;i<id.data.length;i+=4){
+      const g=(id.data[i]*77+id.data[i+1]*150+id.data[i+2]*29)>>8;
+      const v=g<128?255:0;
+      id.data[i]=id.data[i+1]=id.data[i+2]=v;
+    }
+    ctx2.putImageData(id,0,0);
+    const {data:{text:text2}}=await worker.recognize(proc);
+    console.log('[Tesseract inv]',text2.replace(/\n/g,' ').trim());
+    return parseOCRText(text2).slice(0,1);
+  }catch(e){console.error('[Tesseract erro]',e);}
+
+  return [];
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
