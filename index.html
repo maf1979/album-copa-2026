@@ -1312,7 +1312,7 @@ function renderGrid(){
       if(activeFilter==='owned'&&cnt===0)continue;
       if(activeFilter==='missing'&&cnt>0)continue;
       if(activeFilter==='duplicate'&&cnt<=1)continue;
-      cells+=`<div class="sc2 ${cnt===0?'':cnt>1?'duplicate':'owned'}" onclick="toggleS(${n})">${cnt>1?`<div class="db">${cnt}</div>`:''}<div>${n}</div></div>`;
+      cells+=`<div class="sc2 ${cnt===0?'':cnt>1?'duplicate':'owned'}" onclick="toggleS(${n})">${cnt>1?`<div class="db">${cnt}</div>`:''}<div>${i+1}</div></div>`;
     }
     if(!cells)continue;
     const grpLabel=t.group&&t.group!=='—'?`<span style="font-size:10px;color:#999;margin-left:4px">Gr.${t.group}</span>`:'';
