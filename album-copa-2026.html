@@ -131,24 +131,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ss.proc{color:#0d2b5e;font-weight:500}
 .ss.ok{color:#1a7a3c;font-weight:500}
 .ss.dup{color:#c8282a;font-weight:500}
-/* Painel de confirmação multi-sticker */
-.confirm-panel{margin:0 12px 8px;background:#fff;border:2px solid #0d2b5e;border-radius:14px;padding:12px;display:none;flex-direction:column;gap:10px}
+/* Painel de confirmação */
+.confirm-panel{margin:0 12px 8px;background:#fff;border:2px solid #0d2b5e;border-radius:14px;padding:14px;display:none;flex-direction:column;gap:12px}
 .confirm-panel.show{display:flex}
-.confirm-header{display:flex;align-items:center;justify-content:space-between}
-.confirm-title{font-size:13px;font-weight:700;color:#0d2b5e}
-.confirm-selall{font-size:11px;color:#185FA5;cursor:pointer;background:none;border:none;padding:2px 6px;border-radius:4px}
-.confirm-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
-.confirm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f9fa;border-radius:10px;border:2px solid #e0e0e0;cursor:pointer;transition:all .15s;user-select:none}
-.confirm-item.checked{background:#eef3ff;border-color:#0d2b5e}
-.confirm-item.unmapped{opacity:.55}
-.confirm-cb{width:18px;height:18px;accent-color:#0d2b5e;cursor:pointer;flex-shrink:0}
-.ci-thumb{width:38px;height:50px;border-radius:6px;background:#0d2b5e;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff;font-weight:700;text-align:center;line-height:1.2}
-.ci-info{flex:1;min-width:0}
-.ci-num{font-size:13px;font-weight:700;color:#222}
-.ci-name{font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ci-team{font-size:10px;color:#888}
-.ci-badges{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
-.confirm-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-block}
+.confirm-sticker{display:flex;align-items:center;gap:12px}
+.confirm-thumb{width:50px;height:66px;border-radius:8px;background:#0d2b5e;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#fff;font-weight:700;text-align:center;line-height:1.2}
+.confirm-info{flex:1}
+.confirm-num{font-size:18px;font-weight:700;color:#0d2b5e}
+.confirm-name{font-size:14px;font-weight:500;color:#222;margin-top:2px}
+.confirm-team{font-size:12px;color:#888}
+.confirm-conf{font-size:11px;margin-top:4px}
+.conf-high{color:#1a7a3c;font-weight:600}
+.conf-med{color:#d4a017;font-weight:600}
+.conf-low{color:#c8282a;font-weight:600}
+.confirm-status{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;display:inline-block;margin-top:4px}
 .cst-new{background:#e8f5e9;color:#1a7a3c}
 .cst-dup{background:#fce8e8;color:#a32d2d}
 .cst-unk{background:#fff3e0;color:#b07000}
@@ -407,58 +403,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <!-- SCANNER -->
   <div class="page" id="page-scan">
-
-    <!-- Câmera pequena: ajuda a VER o código no verso da figurinha -->
-    <div class="scan-area" style="height:42vw;max-height:240px;aspect-ratio:unset;margin-bottom:10px">
+    <div class="scan-mode-btns">
+      <button class="mode-btn active" id="modeBack" onclick="setMode('back')">📷 Verso — OCR grátis</button>
+      <button class="mode-btn" id="modeFront" onclick="setMode('front')">✨ Frente — requer IA</button>
+    </div>
+    <div id="modeInfoBar" style="margin:0 12px 6px;padding:8px 12px;border-radius:8px;font-size:12px;background:#e8f5e9;color:#1a7a3c;border:1px solid #b2dfdb">
+      Modo verso: lê o código impresso automaticamente via OCR, sem custos.
+    </div>
+    <div class="apikey-banner" id="apikeyBanner">
+      ⚠️ Configure sua chave da API Anthropic para usar o reconhecimento por IA
+      <button onclick="openApiKeyModal()">Configurar</button>
+    </div>
+    <div class="scan-area">
       <div class="camoff" id="camOff">
         <div class="cam-icon">📷</div>
-        <p>Ligue a câmera para visualizar o verso da figurinha e identificar o código</p>
+        <p>Toque em "Iniciar câmera" para escanear figurinhas automaticamente</p>
       </div>
       <video id="vEl" autoplay playsinline muted></video>
-      <div class="scan-ov" id="scanOv" style="justify-content:flex-end;padding-bottom:8px;background:none">
-        <div id="ssTxt" style="background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;max-width:90%;text-align:center;display:none"></div>
+      <div class="scan-ov" id="scanOv">
+        <div class="scan-fr"><div class="sline"></div></div>
+        <div class="scan-hint" id="scanHint">Posicione o verso da figurinha no quadro</div>
       </div>
       <div class="auto-badge" id="autoBadge" style="display:none">AUTO</div>
     </div>
-
-    <!-- Área de cadastro: entrada manual + lookup em tempo real -->
-    <div style="margin:0 12px 10px;background:#fff;border-radius:14px;border:1px solid #e8e8e8;padding:14px">
-      <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.5">
-        Veja o código no canto superior direito do verso:<br>
-        <span style="font-family:monospace;font-size:13px;color:#0d2b5e;font-weight:600">BRA 5 · HAI 1 · FWC 4 · PAR 12 · ENG 3</span>
+    <div class="scan-status"><p class="ss" id="ssTxt">Pronto para escanear</p></div>
+    <div class="confirm-panel" id="confirmPanel">
+      <div class="confirm-sticker">
+        <div class="confirm-thumb" id="cThumb">#001</div>
+        <div class="confirm-info">
+          <div class="confirm-num" id="cNum">#001</div>
+          <div class="confirm-name" id="cName">—</div>
+          <div class="confirm-team" id="cTeam">—</div>
+          <div class="confirm-conf" id="cConf"></div>
+          <span class="confirm-status" id="cStatus">—</span>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input id="codeField" type="text" placeholder="Ex: BRA 5" maxlength="8"
-               style="flex:1;padding:12px 16px;border:2px solid #0d2b5e;border-radius:10px;font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;outline:none;text-align:center"
-               oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'');lookupCode()"
-               onkeydown="if(event.key==='Enter')saveCode()">
+      <div class="confirm-actions">
+        <button class="cbtn cbtn-confirm" onclick="confirmSticker()">✓ Confirmar e salvar</button>
+        <button class="cbtn cbtn-discard" onclick="discardSticker()">✕ Descartar</button>
       </div>
-      <!-- Info em tempo real -->
-      <div id="codeInfo" style="font-size:13px;min-height:22px;margin-bottom:12px;padding:0 2px"></div>
-      <!-- Botão salvar -->
-      <button onclick="saveCode()" id="saveBtn"
-              style="width:100%;padding:14px;background:#1a7a3c;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;opacity:.4;transition:opacity .2s">
-        ✓ Adicionar à coleção
-      </button>
     </div>
-
-    <!-- Botão câmera discreto -->
-    <button class="abtn" id="camBtn" onclick="toggleCam()"
-            style="background:#0d2b5e;margin-bottom:8px">
-      📷 <span id="camBtnTxt">Ligar câmera</span>
-    </button>
-    <!-- Elementos mantidos para compatibilidade interna -->
-    <div id="modeInfoBar" style="display:none"></div>
-    <div class="apikey-banner" id="apikeyBanner" style="display:none">
-      ⚠️ Configure sua chave da API Anthropic <button onclick="openApiKeyModal()">Configurar</button>
-    </div>
-    <div id="codePanel" style="display:none"></div>
-    <div id="manualBtn" style="display:none"></div>
-    <div class="scan-mode-btns" style="display:none">
-      <button id="modeBack"></button><button id="modeFront"></button>
-    </div>
-    <div class="scan-fr" style="display:none"><div class="sline"></div></div>
-    <div class="scan-hint" id="scanHint" style="display:none"></div>
+    <button class="abtn" id="camBtn" onclick="toggleCam()">📷 <span id="camBtnTxt">Iniciar câmera</span></button>
   </div>
 
   <!-- COLEÇÃO -->
@@ -894,7 +879,7 @@ const FWC_NAMES=["Emblema Oficial","Emblema Foil","Mascote Oficial","Lema Oficia
 
 let col={};
 let camStream=null,scanning=false,activeFilter='all',scanMode='back',cChart=null,groupsExpanded=false;
-let autoScanTimer=null,pendingStickers=[];
+let autoScanTimer=null,pendingSticker=null;
 let ocrWorker=null;
 
 // Prefixo Panini → nome do time conforme estrutura real do álbum
@@ -937,248 +922,46 @@ function codeToNumber(prefix, pos){
 
 async function initOCR(){
   if(ocrWorker) return ocrWorker;
-  setSS('Inicializando OCR…','');
+  setSS('Inicializando OCR (primeira vez demora ~10s)…','proc');
   ocrWorker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
   await ocrWorker.setParameters({
     tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-    tessedit_pageseg_mode:'11', // sparse text — versão original que lia o badge
+    tessedit_pageseg_mode:'11',
   });
   return ocrWorker;
 }
 
-// ── Painel de código (manual + OCR) ──────────────────────────
-function openCodePanel(code){
-  stopAutoScan();
-  const f=document.getElementById('codeField');
-  f.value=code||'';
-  document.getElementById('codeInfo').textContent='';
-  document.getElementById('codePanel').style.display='block';
-  if(code) lookupCode();
-  setTimeout(()=>f.focus(),150);
-}
-function closeCodePanel(){
-  document.getElementById('codePanel').style.display='none';
-  pendingStickers=[];
-  if(camStream) startAutoScan();
-}
-function lookupCode(){
-  const raw=document.getElementById('codeField').value.trim().toUpperCase().replace(/\s+/g,' ');
-  const el=document.getElementById('codeInfo');
-  const btn=document.getElementById('saveBtn');
-  const m=raw.match(/^([A-Z]{2,4})\s*(\d{1,2})$/);
-  if(!m){
-    el.textContent=raw.length>1?'Formato: 2-4 letras + número  (ex: BRA 5, HAI 1, FWC 4)':'';
-    el.style.color='#888';
-    if(btn)btn.style.opacity='.4';
-    return;
-  }
-  const prefix=m[1],pos=parseInt(m[2]);
-  if(!CODE_MAP.hasOwnProperty(prefix)){
-    el.style.color='#c8282a';
-    el.textContent=`Código "${prefix}" não está no álbum. Verifique.`;
-    if(btn)btn.style.opacity='.4';
-    return;
-  }
-  const num=codeToNumber(prefix,pos);
-  if(!num){
-    el.style.color='#c8282a';
-    el.textContent=`Posição ${pos} inválida para ${prefix}`;
-    if(btn)btn.style.opacity='.4';
-    return;
-  }
-  const info=getInfo(num);
-  const owned=!!col[num];
-  el.style.color=owned?'#b07000':'#1a7a3c';
-  const icon=owned?'⚠':'✓';
-  const status=owned?'já está na coleção':'nova figurinha';
-  el.textContent=`${icon}  #${num} · ${info.name} · ${info.team} — ${status}`;
-  if(btn)btn.style.opacity='1';
-}
-function saveCode(){
-  const raw=document.getElementById('codeField').value.trim().toUpperCase().replace(/\s+/g,' ');
-  const m=raw.match(/^([A-Z]{2,4})\s*(\d{1,2})$/);
-  if(!m) return;
-  const num=codeToNumber(m[1],parseInt(m[2]));
-  if(!num) return;
-  addSticker(num);
-  const info=getInfo(num);
-  setSS(`✓ ${raw} salva!`,'ok');
-  document.getElementById('codeField').value='';
-  document.getElementById('codeInfo').textContent='';
-  const btn=document.getElementById('saveBtn');
-  if(btn)btn.style.opacity='.4';
-}
-function openCodePanel(code){
-  const f=document.getElementById('codeField');
-  if(!f) return;
-  if(code){f.value=code;lookupCode();}
-  f.focus();
-}
-function closeCodePanel(){pendingStickers=[];if(camStream)startAutoScan();}
-
-// Localiza regiões escuras (badges) no topo-direito do frame por análise de pixels
-function findBadgesInFrame(canvas){
-  const w=canvas.width,h=canvas.height;
-  const ctx=canvas.getContext('2d');
-  // Busca: direita 65%, topo 50%
-  const x0=Math.floor(w*0.30),y0=Math.floor(h*0.04);
-  const sw=w-x0,sh=Math.floor(h*0.46);
-  const step=4; // amostra a cada 4px (rápido)
-  const raw=ctx.getImageData(x0,y0,sw,sh).data;
-  const sW=Math.floor(sw/step),sH=Math.floor(sh/step);
-
-  // Mapa de brilho
-  const br=new Float32Array(sW*sH);
-  for(let sy=0;sy<sH;sy++) for(let sx=0;sx<sW;sx++){
-    const i=((sy*step)*sw+(sx*step))*4;
-    br[sy*sW+sx]=(raw[i]*77+raw[i+1]*150+raw[i+2]*29)>>8;
-  }
-  // Suavização 3×3
-  const sm=new Float32Array(sW*sH);
-  for(let sy=1;sy<sH-1;sy++) for(let sx=1;sx<sW-1;sx++){
-    let s=0;
-    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) s+=br[(sy+dy)*sW+(sx+dx)];
-    sm[sy*sW+sx]=s/9;
-  }
-
-  const badges=[],used=new Uint8Array(sW*sH);
-  for(let iter=0;iter<5;iter++){
-    // Ponto mais escuro não usado
-    let minV=255,minI=-1;
-    for(let i=0;i<sm.length;i++) if(!used[i]&&sm[i]<minV){minV=sm[i];minI=i;}
-    if(minV>90||minI<0) break;
-
-    const mx=minI%sW,my=Math.floor(minI/sW);
-    const thr=minV+35;
-    // Expande para achar fronteira da região escura
-    let x1=mx,x2=mx,y1=my,y2=my;
-    while(x1>0&&sm[my*sW+x1-1]<thr) x1--;
-    while(x2<sW-1&&sm[my*sW+x2+1]<thr) x2++;
-    while(y1>0&&sm[(y1-1)*sW+mx]<thr) y1--;
-    while(y2<sH-1&&sm[(y2+1)*sW+mx]<thr) y2++;
-    // Marca como usado
-    for(let sy=Math.max(0,y1-3);sy<=Math.min(sH-1,y2+3);sy++)
-      for(let sx=Math.max(0,x1-3);sx<=Math.min(sW-1,x2+3);sx++) used[sy*sW+sx]=1;
-
-    const rW=(x2-x1+1)*step,rH=(y2-y1+1)*step;
-    // Filtra: badge tem aspecto horizontal, não muito grande nem muito pequeno
-    if(rW<20||rH<6||rW>w*0.5||rH>h*0.2) continue;
-
-    const pad=step*6;
-    badges.push({
-      x:Math.max(0,x0+x1*step-pad),
-      y:Math.max(0,y0+y1*step-pad),
-      w:Math.min(w,(x2-x1+2)*step+pad*2),
-      h:Math.min(h,(y2-y1+2)*step+pad*2),
-    });
-  }
-  return badges;
-}
-
-// Extrai região em alta resolução e inverte para OCR
-function cropForOCR(canvas,cx,cy,cw,ch){
-  const scale=Math.max(2,Math.round(300/Math.max(cw,1))); // ~300px de largura mínima
-  const c=document.createElement('canvas');
-  c.width=cw*scale; c.height=ch*scale;
-  const ctx=c.getContext('2d');
-  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,c.width,c.height);
-  // Inverte: fundo escuro→branco, texto branco→preto
-  const id=ctx.getImageData(0,0,c.width,c.height);
-  const d=id.data;
-  for(let i=0;i<d.length;i+=4){
-    const g=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;
-    d[i]=d[i+1]=d[i+2]=g<128?255:0;
-  }
-  ctx.putImageData(id,0,0);
-  return c;
-}
-
-function parseOCRText(text){
-  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-  console.log('[OCR]',clean);
-  const seen=new Set(),acc=[];
-  // Tentativa 1: padrão normal "HAI 1" ou "HAI1"
-  for(const m of clean.matchAll(/\b([A-Z]{2,4})\s{0,2}(\d{1,2})\b/g)){
-    if(!CODE_MAP.hasOwnProperty(m[1])) continue;
-    const raw=`${m[1]} ${m[2]}`;
-    if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
-  }
-  // Tentativa 2 (fallback): busca direta sem espaços — trata erros de segmentação OCR
-  if(!acc.length){
-    const ns=clean.replace(/\s/g,'');
-    for(const code of Object.keys(CODE_MAP)){
-      const m=ns.match(new RegExp(code+'(\\d{1,2})'));
-      if(m){
-        const raw=`${code} ${m[1]}`;
-        if(!seen.has(raw)){seen.add(raw);acc.push({prefix:code,pos:parseInt(m[1]),raw});}
-      }
-    }
-  }
-  return acc;
-}
-
 async function runOCROnFrame(){
   const vid=document.getElementById('vEl');
-  if(!vid.videoWidth||!vid.videoHeight) return [];
   const canvas=document.getElementById('captureCanvas');
-  canvas.width=vid.videoWidth;
-  canvas.height=vid.videoHeight;
+  canvas.width=vid.videoWidth||640;
+  canvas.height=vid.videoHeight||480;
   canvas.getContext('2d').drawImage(vid,0,0);
 
-  // ── Estratégia 1: TextDetector API (Chrome nativo — melhor resultado) ─────
-  if('TextDetector' in window){
-    try{
-      const det=new TextDetector();
-      const texts=await det.detect(canvas);
-      console.log('[TextDetector]',texts.map(t=>t.rawValue));
-      const seen=new Set(),acc=[];
-      for(const t of texts){
-        const clean=t.rawValue.replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
-        // Testa o texto inteiro e substrings (ex: "FWC 4" pode vir junto com outros textos)
-        for(const m of clean.matchAll(/([A-Z]{2,4})\s*(\d{1,2})/g)){
-          if(!CODE_MAP.hasOwnProperty(m[1])) continue;
-          const raw=`${m[1]} ${m[2]}`;
-          if(!seen.has(raw)){seen.add(raw);acc.push({prefix:m[1],pos:parseInt(m[2]),raw});}
-        }
-      }
-      if(acc.length){console.log('[TextDetector] encontrou:',acc[0].raw);return acc.slice(0,1);}
-    }catch(e){console.log('[TextDetector] erro:',e.message);}
+  // Recorta o canto superior direito onde fica o badge (≈42% largura, 24% altura)
+  const w=canvas.width, h=canvas.height;
+  const cx=Math.floor(w*0.58), cy=0, cw=w-cx, ch=Math.floor(h*0.24);
+  const scale=3;
+  const proc=document.createElement('canvas');
+  proc.width=cw*scale; proc.height=ch*scale;
+  const ctx=proc.getContext('2d');
+  ctx.drawImage(canvas,cx,cy,cw,ch,0,0,proc.width,proc.height);
+
+  // Inverte cores: badge escuro com texto branco → fundo claro com texto escuro (OCR prefere)
+  const imgData=ctx.getImageData(0,0,proc.width,proc.height);
+  for(let i=0;i<imgData.data.length;i+=4){
+    imgData.data[i]=255-imgData.data[i];
+    imgData.data[i+1]=255-imgData.data[i+1];
+    imgData.data[i+2]=255-imgData.data[i+2];
   }
+  ctx.putImageData(imgData,0,0);
 
-  // ── Estratégia 2: Tesseract + detecção de badge por brilho ──────────────
-  try{
-    const badges=findBadgesInFrame(canvas);
-    console.log('[Tesseract] badges detectados:',badges.length, badges[0]);
-    if(!badges.length) return [];
-    const b=badges[0];
-
-    // Extrai badge em alta resolução SEM inversão manual — Tesseract auto-detecta
-    const scale=Math.max(3,Math.round(350/Math.max(b.w,1)));
-    const proc=document.createElement('canvas');
-    proc.width=b.w*scale; proc.height=b.h*scale;
-    proc.getContext('2d').drawImage(canvas,b.x,b.y,b.w,b.h,0,0,proc.width,proc.height);
-
-    const worker=await initOCR();
-    const {data:{text}}=await worker.recognize(proc);
-    console.log('[Tesseract raw]',text.replace(/\n/g,' ').trim());
-    const r=parseOCRText(text);
-    if(r.length) return r.slice(0,1);
-
-    // Tentativa com imagem invertida (texto branco em fundo escuro → inverte)
-    const ctx2=proc.getContext('2d');
-    const id=ctx2.getImageData(0,0,proc.width,proc.height);
-    for(let i=0;i<id.data.length;i+=4){
-      const g=(id.data[i]*77+id.data[i+1]*150+id.data[i+2]*29)>>8;
-      const v=g<128?255:0;
-      id.data[i]=id.data[i+1]=id.data[i+2]=v;
-    }
-    ctx2.putImageData(id,0,0);
-    const {data:{text:text2}}=await worker.recognize(proc);
-    console.log('[Tesseract inv]',text2.replace(/\n/g,' ').trim());
-    return parseOCRText(text2).slice(0,1);
-  }catch(e){console.error('[Tesseract erro]',e);}
-
-  return [];
+  const worker=await initOCR();
+  const {data:{text}}=await worker.recognize(proc);
+  const clean=text.replace(/\n/g,' ').replace(/[^A-Z0-9 ]/gi,'').trim().toUpperCase();
+  const m=clean.match(/\b([A-Z]{2,4})\s*(\d{1,2})\b/);
+  if(!m) return null;
+  return {prefix:m[1], pos:parseInt(m[2]), raw:`${m[1]} ${m[2]}`};
 }
 
 function addSticker(n){col[n]=(col[n]||0)+1;updateAll();if(window.scheduleSave)window.scheduleSave();}
@@ -1341,7 +1124,7 @@ function setMode(m){
     bar.innerHTML='✨ Modo frente requer chave de API Anthropic. <button onclick="openApiKeyModal()" style="margin-left:6px;padding:3px 8px;border-radius:5px;border:none;background:#0d2b5e;color:#fff;font-size:11px;cursor:pointer">Configurar</button>';
   }
   checkApiBanner();
-  if(camStream){stopAutoScan();document.getElementById('confirmPanel').classList.remove('show');pendingStickers=[];startAutoScan();}
+  if(camStream){stopAutoScan();document.getElementById('confirmPanel').classList.remove('show');pendingSticker=null;startAutoScan();}
 }
 function nav(p){
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
@@ -1389,9 +1172,10 @@ async function toggleCam(){
     document.getElementById('camOff').style.display='flex';
     document.getElementById('scanOv').style.display='none';
     document.getElementById('autoBadge').style.display='none';
-    document.getElementById('camBtnTxt').textContent='Ligar câmera';
+    document.getElementById('camBtnTxt').textContent='Iniciar câmera';
     document.getElementById('camBtn').classList.remove('red');
-    pendingStickers=[];
+    document.getElementById('confirmPanel').classList.remove('show');
+    pendingSticker=null;
     return;
   }
   if(scanMode==='front' && !getApiKey()){openApiKeyModal();return;}
@@ -1401,25 +1185,19 @@ async function toggleCam(){
     document.getElementById('camOff').style.display='none';
     document.getElementById('scanOv').style.display='flex';
     document.getElementById('autoBadge').style.display='block';
-    document.getElementById('camBtnTxt').textContent='Desligar câmera';
+    document.getElementById('camBtnTxt').textContent='Parar câmera';
     document.getElementById('camBtn').classList.add('red');
-    setSS('OCR ativo — ou digite o código abaixo','');
+    setSS('Reconhecimento automático ativo — aponte para o verso da figurinha','');
     startAutoScan();
   }catch(e){setSS('Câmera indisponível. Use a aba Coleção para marcar manualmente.','');}
 }
-function setSS(msg,type){
-  const el=document.getElementById('ssTxt');
-  if(!el)return;
-  el.textContent=msg;
-  el.style.display=msg?'block':'none';
-  el.style.background=type==='ok'?'rgba(26,122,60,.85)':type==='dup'?'rgba(200,40,42,.85)':'rgba(0,0,0,.6)';
-}
+function setSS(msg,type){const el=document.getElementById('ssTxt');if(el){el.textContent=msg;el.className='ss'+(type?' '+type:'');}}
 
 // ── Auto scan loop ──
 function startAutoScan(){
   stopAutoScan();
   autoScanTimer=setInterval(()=>{
-    if(!scanning&&!pendingStickers.length&&camStream)doAI();
+    if(!scanning&&!pendingSticker&&camStream)doAI();
   },3500);
 }
 function stopAutoScan(){
@@ -1427,25 +1205,35 @@ function stopAutoScan(){
 }
 
 async function doAI(){
-  if(!camStream||scanning||pendingStickers.length)return;
+  if(!camStream||scanning||pendingSticker)return;
   if(scanMode==='back') await doBackOCR();
   else await doFrontAI();
 }
 
 async function doBackOCR(){
   scanning=true;
+  const badge=document.getElementById('autoBadge');
+  if(badge){badge.textContent='LENDO…';badge.classList.add('scanning');}
   try{
-    const results=await runOCROnFrame();
-    if(results&&results.length){
-      // OCR funcionou: preenche o campo automaticamente
-      const f=document.getElementById('codeField');
-      if(f&&!f.value){
-        f.value=results[0].raw;
-        lookupCode();
-        setSS(`OCR: ${results[0].raw}`,'ok');
-      }
+    const result=await runOCROnFrame();
+    if(result){
+      const num=codeToNumber(result.prefix,result.pos);
+      const teamName=CODE_MAP[result.prefix]||null;
+      pendingSticker={
+        found:true, number:num, code:result.raw,
+        prefix:result.prefix, pos:result.pos,
+        player_name: num ? getInfo(num).name : null,
+        team: num ? getInfo(num).team : (teamName||result.prefix),
+        confidence:'ocr',
+        unmapped: !num,
+      };
+      showConfirmPanel(pendingSticker);
+      stopAutoScan();
+      setSS('Código lido — confirme antes de salvar','');
+    } else {
+      setSS('Badge não encontrado. Ajuste a posição…','');
     }
-  }catch(e){console.error('[OCR]',e);}
+  }catch(e){setSS('Erro OCR: '+e.message,'');}
   scanning=false;resetBadge();
 }
 
@@ -1487,9 +1275,8 @@ Responda SOMENTE JSON sem markdown:
     const txt=data.content?.find(c=>c.type==='text')?.text||'{}';
     let info;try{info=JSON.parse(txt.replace(/```json[\s\S]*?```|```/g,'').trim());}catch{info={found:false};}
     if(info.found&&info.number>=1&&info.number<=980){
-      const s={...info,checked:true,unmapped:false,code:null};
-      pendingStickers=[s];
-      showConfirmPanel([s]);
+      pendingSticker=info;
+      showConfirmPanel(info);
       stopAutoScan();
       setSS('Figurinha identificada — confirme antes de salvar','');
     } else {
@@ -1504,73 +1291,55 @@ function resetBadge(){
   if(badge&&camStream){badge.textContent='AUTO';badge.classList.remove('scanning');}
 }
 
-function showConfirmPanel(stickers){
-  pendingStickers=stickers;
-  const n=stickers.length;
-  document.getElementById('confirmTitle').textContent=
-    `${n} figurinha${n!==1?'s':''} encontrada${n!==1?'s':''}`;
-
-  document.getElementById('confirmList').innerHTML=stickers.map((s,i)=>{
-    const num=s.number;
-    const label=num?'#'+String(num).padStart(3,'0'):s.code||'?';
-    const name=num?(s.player_name||getInfo(num).name):'Time não catalogado';
-    const team=s.team||(num?getInfo(num).team:'—');
-    const isOwned=num&&!!col[num];
-    const stCls=s.unmapped?'cst-unk':isOwned?'cst-dup':'cst-new';
-    const stTxt=s.unmapped?'⚠ Não mapeado':isOwned?'⚠ Repetida':'✓ Nova';
-    const confTxt=s.confidence==='ocr'?'OCR':`IA ${s.confidence||''}`;
-    const codeTag=s.code?`<span style="font-size:9px;color:#999">${s.code}</span>`:'';
-    return`<div class="confirm-item${s.checked?' checked':''}${s.unmapped?' unmapped':''}" onclick="toggleConfirmItem(${i})">
-      <input class="confirm-cb" type="checkbox" ${s.checked?'checked':''} onclick="event.stopPropagation();toggleConfirmItem(${i})">
-      <div class="ci-thumb">${label}</div>
-      <div class="ci-info">
-        <div class="ci-num">${label}</div>
-        <div class="ci-name">${name}</div>
-        <div class="ci-team">${team}</div>
-        <div class="ci-badges">
-          <span class="confirm-status ${stCls}">${stTxt}</span>
-          <span style="font-size:9px;color:#aaa">${confTxt}</span>
-          ${codeTag}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
+function showConfirmPanel(info){
+  const num=info.number;
+  const codeLabel=info.code?` (${info.code})`:'';
+  if(num){
+    const isOwned=!!col[num];
+    document.getElementById('cThumb').textContent='#'+String(num).padStart(3,'0');
+    document.getElementById('cNum').textContent='#'+String(num).padStart(3,'0')+codeLabel;
+    document.getElementById('cName').textContent=info.player_name||getInfo(num).name;
+    document.getElementById('cTeam').textContent=info.team||getInfo(num).team;
+    const st=document.getElementById('cStatus');
+    st.textContent=isOwned?'⚠ Figurinha repetida':'✓ Nova figurinha';
+    st.className='confirm-status '+(isOwned?'cst-dup':'cst-new');
+  } else {
+    document.getElementById('cThumb').textContent=info.code||'?';
+    document.getElementById('cNum').textContent=info.code||'?';
+    document.getElementById('cName').textContent='Time não catalogado';
+    document.getElementById('cTeam').textContent=info.team||info.prefix||'—';
+    const st=document.getElementById('cStatus');
+    st.textContent='⚠ Não está na lista do app';
+    st.className='confirm-status cst-dup';
+  }
+  const confEl=document.getElementById('cConf');
+  if(info.confidence==='ocr'){
+    confEl.textContent='Lido por OCR';confEl.className='confirm-conf conf-high';
+  } else {
+    const confMap={alta:'conf-high',media:'conf-med',baixa:'conf-low'};
+    confEl.textContent='IA — confiança: '+(info.confidence||'—');
+    confEl.className='confirm-conf '+(confMap[info.confidence]||'');
+  }
   document.getElementById('confirmPanel').classList.add('show');
 }
 
-function toggleConfirmItem(i){
-  if(pendingStickers[i].unmapped)return; // não permite selecionar não-mapeados
-  pendingStickers[i].checked=!pendingStickers[i].checked;
-  const items=document.querySelectorAll('#confirmList .confirm-item');
-  if(items[i]){
-    items[i].classList.toggle('checked',pendingStickers[i].checked);
-    const cb=items[i].querySelector('.confirm-cb');
-    if(cb)cb.checked=pendingStickers[i].checked;
+function confirmSticker(){
+  if(!pendingSticker)return;
+  if(pendingSticker.number){
+    addSticker(pendingSticker.number);
+    setSS('Figurinha salva na coleção!','ok');
+  } else {
+    setSS('Time não catalogado — figurinha descartada.','');
   }
-}
-
-function toggleAllConfirm(){
-  const anyChecked=pendingStickers.some(s=>s.checked&&!s.unmapped);
-  pendingStickers.forEach(s=>{if(!s.unmapped)s.checked=!anyChecked;});
-  showConfirmPanel(pendingStickers);
-}
-
-function confirmStickers(){
-  let saved=0;
-  for(const s of pendingStickers){
-    if(s.checked&&s.number){addSticker(s.number);saved++;}
-  }
-  pendingStickers=[];
+  pendingSticker=null;
   document.getElementById('confirmPanel').classList.remove('show');
-  setSS(saved?`${saved} figurinha${saved>1?'s':''} salva${saved>1?'s':''}!`:'Nenhuma salva.',saved?'ok':'');
   if(camStream)startAutoScan();
 }
 
-function discardStickers(){
-  pendingStickers=[];
+function discardSticker(){
+  pendingSticker=null;
   document.getElementById('confirmPanel').classList.remove('show');
-  setSS('Descartadas. Buscando próxima…','');
+  setSS('Descartada. Buscando próxima...','');
   if(camStream)startAutoScan();
 }
 
